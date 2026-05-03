@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../stores';
 import { setCredentials } from '../stores/authSlice';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import AddTransactionScreen from '../screens/AddTransactionScreen';
@@ -13,6 +14,19 @@ import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 
 const Stack = createNativeStackNavigator();
+
+// 1. ADD THIS LINKING CONFIGURATION
+const linking = {
+  prefixes: ['https://fintrack-v6l3.onrender.com', 'fintrack://'],
+  config: {
+    screens: {
+      Login: 'login',
+      Register: 'register',
+      Dashboard: '', // Empty string makes Dashboard the default home page
+      AddTransaction: 'add-transaction', 
+    },
+  },
+};  
 
 export default function AppNavigator() {
   const dispatch = useDispatch<AppDispatch>();
@@ -56,7 +70,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking} fallback={<ActivityIndicator size="large" color="#4CAF50" />}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           // 2. If NOT logged in, only give them access to these two screens
