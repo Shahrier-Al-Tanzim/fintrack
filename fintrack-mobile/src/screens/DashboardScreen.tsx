@@ -3,14 +3,14 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../stores'; 
 import { logout } from '../stores/authSlice';
-import { fetchTransactions, deleteTransaction } from '../stores/transactionSlice'; // <-- NEW: Imported deleteTransaction
+import { fetchTransactions, deleteTransaction } from '../stores/transactionSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Transaction } from '../types';
 import { useNavigation } from '@react-navigation/native';
 
 export default function DashboardScreen() {
   const dispatch = useDispatch<AppDispatch>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   
   const user = useSelector((state: RootState) => state.auth.user);
   const { transactions, loading } = useSelector((state: RootState) => state.transactions);
@@ -25,10 +25,14 @@ export default function DashboardScreen() {
     dispatch(logout()); 
   };
 
-  // --- NEW: The Delete Handler with a safety confirmation pop-up ---
-  // --- NEW: Web-Smart Delete Handler ---
+  // --- NEW: Update Handler ---
+  // Navigates to the Add screen but passes the existing transaction data!
+  const handleUpdate = (item: Transaction) => {
+    navigation.navigate('AddTransaction', { transaction: item });
+  };
+
+  // --- Web-Smart Delete Handler ---
   const handleDelete = (id: string) => {
-    // 🌐 If running on a Web Browser
     if (Platform.OS === 'web') {
       const confirmed = window.confirm("Are you sure you want to delete this?");
       if (confirmed) {
@@ -36,10 +40,9 @@ export default function DashboardScreen() {
           .unwrap()
           .catch(error => window.alert("Delete Failed: " + error));
       }
-      return; // Stop here so it doesn't trigger the mobile alert below
+      return; 
     }
 
-    // 📱 If running on iOS or Android
     Alert.alert(
       "Delete Transaction",
       "Are you sure you want to delete this?",
@@ -66,7 +69,6 @@ export default function DashboardScreen() {
     return curr.type === 'INCOME' ? acc + curr.amount : acc - curr.amount;
   }, 0);
 
-  // --- UPDATED: renderItem now includes a Delete Button ---
   const renderItem = ({ item }: { item: Transaction }) => (
     <View style={styles.transactionCard}>
       <View style={styles.transactionInfo}>
@@ -77,16 +79,27 @@ export default function DashboardScreen() {
         <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
       </View>
       
-      {/* Container for the price and the delete button */}
       <View style={styles.rightSide}>
         <Text style={[styles.transactionAmount, { color: item.type === 'INCOME' ? '#4CAF50' : '#F44336' }]}>
           {item.type === 'INCOME' ? '+' : '-'}${item.amount.toFixed(2)}
         </Text>
         
-        {/* The Delete Button itself */}
-        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
-          <Text style={styles.deleteButtonText}>✕</Text>
-        </TouchableOpacity>
+        {/* NEW: Action Buttons Row */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={[styles.actionBtn, styles.updateBtn]} 
+            onPress={() => handleUpdate(item)}
+          >
+            <Text style={styles.btnText}>Update</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionBtn, styles.deleteBtn]} 
+            onPress={() => handleDelete(item.id)}
+          >
+            <Text style={styles.btnText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -119,7 +132,7 @@ export default function DashboardScreen() {
         />
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddTransaction' as never)}>
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddTransaction')}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
     </View>
@@ -142,11 +155,15 @@ const styles = StyleSheet.create({
   transactionDescription: { color: '#AAA', fontSize: 13, marginTop: 4 }, 
   transactionDate: { color: '#888', fontSize: 12, marginTop: 4 },
   
-  // --- NEW: Right side alignment for price and delete button ---
   rightSide: { alignItems: 'flex-end' },
   transactionAmount: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
-  deleteButton: { backgroundColor: '#FF3B30', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
-  deleteButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  
+  // --- NEW BUTTON STYLES ---
+  actionButtons: { flexDirection: 'row', marginTop: 8 },
+  actionBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 5, marginLeft: 8 },
+  updateBtn: { backgroundColor: '#2196F3' }, // Blue
+  deleteBtn: { backgroundColor: '#F44336' }, // Red
+  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
   
   emptyText: { color: '#888', textAlign: 'center', marginTop: 20, fontSize: 16 },
   fab: { position: 'absolute', bottom: 30, right: 30, backgroundColor: '#4CAF50', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3 },

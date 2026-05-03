@@ -80,3 +80,26 @@ export const deleteTransaction = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ error: 'Failed to delete transaction' });
   }
 };
+
+// UPDATE a transaction by ID
+export const updateTransaction = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const { amount, category, type, description } = req.body;
+
+    const updated = await prisma.transaction.update({
+      where: { id },
+      data: {
+        amount: parseFloat(amount),
+        category,
+        type,
+        description,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update error:', error);
+    res.status(500).json({ error: 'Failed to update transaction' });
+  }
+};

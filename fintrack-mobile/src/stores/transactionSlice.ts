@@ -37,6 +37,23 @@ export const deleteTransaction = createAsyncThunk('transactions/delete', async (
   }
 });
 
+// 4. NEW: Updating
+export const updateTransaction = createAsyncThunk(
+  'transactions/update',
+  async ({ id, data }: { id: string; data: Partial<Transaction> }, { rejectWithValue }) => {
+    try {
+      console.log(`📝 Attempting to update transaction ID: ${id}`);
+      const response = await api.put(`/transactions/${id}`, data);
+      console.log('✅ BACKEND UPDATE SUCCESS!', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ BACKEND UPDATE FAILED!', error.response?.data || error.message);
+      return rejectWithValue(error.response?.data?.error || 'Failed to update transaction');
+    }
+  }
+);
+
+
 interface TransactionState {
   transactions: Transaction[];
   loading: boolean;
@@ -58,6 +75,15 @@ const transactionSlice = createSlice({
       // Remove deleted transaction from memory
       .addCase(deleteTransaction.fulfilled, (state, action) => {
         state.transactions = state.transactions.filter(t => t.id !== action.payload);
+      })
+      
+      // NEW: Update transaction in memory
+      .addCase(updateTransaction.fulfilled, (state, action) => {
+        const index = state.transactions.findIndex(t => t.id === action.payload.id);
+        if (index !== -1) {
+          // Replace the old transaction data with the newly updated data from the server
+          state.transactions[index] = action.payload;
+        }
       });
   },
 });

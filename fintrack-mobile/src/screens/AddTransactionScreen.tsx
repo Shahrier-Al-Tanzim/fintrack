@@ -1,18 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../stores';
-import { addTransaction, fetchTransactions } from '../stores/transactionSlice'; // <-- NEW: Added fetchTransactions here
-import { useNavigation } from '@react-navigation/native';
+// --- NEW: Added updateTransaction here ---
+import { addTransaction, fetchTransactions, updateTransaction } from '../stores/transactionSlice'; 
+// --- NEW: Added useRoute to catch the data passed from Dashboard ---
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 export default function AddTransactionScreen() {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigation = useNavigation<any>(); // Added <any> to prevent the TypeScript 'never' error
+  const route = useRoute<any>(); 
+
+  // --- NEW: Check if Dashboard sent a transaction to edit ---
+  const transactionToEdit = route.params?.transaction;
+  const isEditing = !!transactionToEdit; // true if we are editing, false if adding new
+
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState(''); 
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE'); 
   
-  const dispatch = useDispatch<AppDispatch>();
-  const navigation = useNavigation();
+  // --- NEW: Pre-fill the form instantly if we are in Edit Mode ---
+  useEffect(() => {
+    if (transactionToEdit) {
+      setAmount(transactionToEdit.amount.toString());
+      setCategory(transactionToEdit.category);
+      setDescription(transactionToEdit.description || '');
+      setType(transactionToEdit.type);
+    }
+  }, [transactionToEdit]);
 
   const handleSave = async () => {
     if (!amount || !category) {
@@ -21,13 +38,25 @@ export default function AddTransactionScreen() {
     }
 
     try {
-      // 1. Tell Redux to save the new transaction to the backend
-      await dispatch(addTransaction({ 
+      // Prepare the data package
+      const transactionData = {
         amount: parseFloat(amount), 
         category, 
         type,
         description: description || undefined 
-      })).unwrap(); 
+      };
+
+      // 1. Tell Redux to save the transaction to the backend
+      if (isEditing) {
+        // 🔄 IF EDITING: Update the existing transaction
+        await dispatch(updateTransaction({ 
+          id: transactionToEdit.id, 
+          data: transactionData 
+        })).unwrap();
+      } else {
+        // ➕ IF NEW: Add a brand new transaction
+        await dispatch(addTransaction(transactionData)).unwrap(); 
+      }
 
       // 2. NEW FIX: Force Redux to pull the freshest list of transactions from the database!
       await dispatch(fetchTransactions()).unwrap();
@@ -35,13 +64,14 @@ export default function AddTransactionScreen() {
       // 3. Now that Redux is 100% updated, slide back to the Dashboard
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Failed to save', error as string);
+      Alert.alert(`Failed to ${isEditing ? 'update' : 'save'}`, error as string);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>New Transaction</Text>
+      {/* --- NEW: Dynamic Title --- */}
+      <Text style={styles.title}>{isEditing ? 'Edit Transaction' : 'New Transaction'}</Text>
 
       <View style={styles.toggleContainer}>
         <TouchableOpacity 
@@ -86,7 +116,10 @@ export default function AddTransactionScreen() {
       />
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save Transaction</Text>
+        {/* --- NEW: Dynamic Button Text --- */}
+        <Text style={styles.saveButtonText}>
+          {isEditing ? 'Save Changes' : 'Save Transaction'}
+        </Text>
       </TouchableOpacity>
       
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
