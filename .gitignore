@@ -1,0 +1,37 @@
+# --- General ---
+node_modules/
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+
+# --- Backend (fintrack-backend) ---
+fintrack-backend/.env
+fintrack-backend/dist/
+fintrack-backend/prisma/dev.db
+fintrack-backend/prisma/dev.db-journal
+
+# --- Frontend (fintrack-mobile) ---
+fintrack-mobile/.expo/
+fintrack-mobile/.expo-shared/
+fintrack-mobile/web-build/
+fintrack-mobile/assets/adaptive-icon.png
+fintrack-mobile/assets/favicon.png
+fintrack-mobile/assets/icon.png
+fintrack-mobile/assets/splash.png
+
+# Mobile build artifacts
+fintrack-mobile/*.jks
+fintrack-mobile/*.p12
+fintrack-mobile/*.key
+fintrack-mobile/*.mobileprovision
+
+# --- TypeScript ---
+*.tsbuildinfo
