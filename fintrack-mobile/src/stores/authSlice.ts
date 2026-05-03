@@ -1,25 +1,43 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { User } from '../types';
+import api from '../services/api';
+
+// 1. The Async Thunk for Registration
+export const register = createAsyncThunk(
+  'auth/register',
+  async (userData: { name: string; email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/register', userData);
+      // Your backend likely returns { user, token }
+      return response.data;
+    } catch (error: any) {
+      // Pass the backend error message (e.g., "Email already exists") to the UI
+      return rejectWithValue(error.response?.data?.error || 'Registration failed');
+    }
+  }
+);
 
 // Define what our auth state looks like
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  loading: boolean; // NEW: Track if we are currently talking to the server
+  error: string | null; // NEW: Track any error messages
 }
 
-// Set the default state for when the app first opens
 const initialState: AuthState = {
   user: null,
   token: null,
   isAuthenticated: false,
+  loading: false,
+  error: null,
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    // Call this when the user successfully logs in or registers
     setCredentials: (
       state,
       action: PayloadAction<{ user: User; token: string }>
@@ -28,17 +46,38 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.isAuthenticated = true;
     },
-    // Call this to log out
     logout: (state) => {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
     },
+    // Clear any leftover error messages when switching screens
+    clearError: (state) => {
+      state.error = null;
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      // Handle the "Loading" state
+      .addCase(register.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      // Handle "Success"
+      .addCase(register.fulfilled, (state, action) => {
+        state.loading = false;
+        // Optional: Log them in immediately if your backend returns a token on register
+        // state.user = action.payload.user;
+        // state.token = action.payload.token;
+        // state.isAuthenticated = true;
+      })
+      // Handle "Error"
+      .addCase(register.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
-// Export the actions so we can trigger them from our screens
-export const { setCredentials, logout } = authSlice.actions;
-
-// Export the reducer to build the main store
+export const { setCredentials, logout, clearError } = authSlice.actions;
 export default authSlice.reducer;
