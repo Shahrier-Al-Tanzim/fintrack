@@ -289,25 +289,29 @@ export default function DashboardScreen() {
                       <Text style={styles.emptyBudgetText}>No budgets set. Tap to start!</Text>
                     </TouchableOpacity>
                   ) : (
-                    budgets.slice(0, 5).map(budget => {
-                      const spent = transactions
-                        .filter(t => t.type === 'EXPENSE' && new Date(t.date) >= firstDay && (!budget.category || t.category.toLowerCase() === budget.category.toLowerCase()))
-                        .reduce((sum, t) => sum + t.amount, 0);
-                      const progress = Math.min(spent / budget.amount, 1);
-                      const isOver = spent > budget.amount;
+                    <View style={styles.budgetScrollContainer}>
+                      <ScrollView showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
+                        {budgets.map(budget => {
+                          const spent = transactions
+                            .filter(t => t.type === 'EXPENSE' && new Date(t.date) >= firstDay && (!budget.category || t.category.toLowerCase() === budget.category.toLowerCase()))
+                            .reduce((sum, t) => sum + t.amount, 0);
+                          const progress = Math.min(spent / budget.amount, 1);
+                          const isOver = spent > budget.amount;
 
-                      return (
-                        <View key={budget.id} style={styles.dashboardBudgetCard}>
-                          <View style={styles.budgetInfo}>
-                            <Text style={styles.budgetCategory}>{budget.category || 'General'}</Text>
-                            <Text style={styles.budgetAmount}>${spent.toFixed(0)} / ${budget.amount.toFixed(0)}</Text>
-                          </View>
-                          <View style={styles.dashboardProgressBar}>
-                            <View style={[styles.dashboardProgressFill, { width: `${progress * 100}%`, backgroundColor: isOver ? '#F44336' : '#4CAF50' }]} />
-                          </View>
-                        </View>
-                      );
-                    })
+                          return (
+                            <View key={budget.id} style={styles.dashboardBudgetCard}>
+                              <View style={styles.budgetInfo}>
+                                <Text style={styles.budgetCategory}>{budget.category || 'General'}</Text>
+                                <Text style={styles.budgetAmount}>${spent.toFixed(0)} / ${budget.amount.toFixed(0)}</Text>
+                              </View>
+                              <View style={styles.dashboardProgressBar}>
+                                <View style={[styles.dashboardProgressFill, { width: `${progress * 100}%`, backgroundColor: isOver ? '#F44336' : '#4CAF50' }]} />
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
                   )}
                 </View>
               </View>
@@ -340,11 +344,15 @@ export default function DashboardScreen() {
                   ) : safeTransactions.length === 0 ? (
                     <Text style={styles.emptyText}>No transactions yet.</Text>
                   ) : (
-                    safeTransactions.slice(0, 5).map(item => (
-                      <View key={item.id}>
-                        {renderTransactionItem({ item })}
-                      </View>
-                    ))
+                    <View style={styles.transactionScrollContainer}>
+                      <ScrollView showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
+                        {safeTransactions.map(item => (
+                          <View key={item.id}>
+                            {renderTransactionItem({ item })}
+                          </View>
+                        ))}
+                      </ScrollView>
+                    </View>
                   )}
                 </View>
               </View>
@@ -430,6 +438,7 @@ const styles = StyleSheet.create({
   accountName: { color: '#AAA', fontSize: 13, marginTop: 10, marginBottom: 5, fontWeight: '600' },
   accountBalance: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
   budgetList: { paddingHorizontal: 25 },
+  budgetScrollContainer: { height: 260 }, // Shows ~3 budgets
   dashboardBudgetCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: 18, borderRadius: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
   budgetInfo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   budgetCategory: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
@@ -442,6 +451,7 @@ const styles = StyleSheet.create({
   chartCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 24, padding: 15, alignItems: 'center', marginHorizontal: 25, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
   chart: { borderRadius: 16, marginTop: 10 },
   transactionsSection: { marginBottom: 35 },
+  transactionScrollContainer: { height: 400 }, // Shows ~5 transactions
   scrollableContainer: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 24, padding: 15, marginHorizontal: 25, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
   transactionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: 18, borderRadius: 18, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
   transactionIconContainer: { width: 45, height: 45, borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
