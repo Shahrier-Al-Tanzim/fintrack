@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import prisma from '../utils/primsa.js';
-import { registerSchema } from '../utils/validation.js';
+import prisma from '../utils/prisma.js';
+import { registerSchema, loginSchema } from '../utils/validation.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
@@ -44,13 +44,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
-
-    // 1. Check if they sent both fields
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
+    const parsedBody = loginSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      res.status(400).json({ error: 'Invalid input data', details: parsedBody.error.issues });
       return;
     }
+
+    const { email, password } = parsedBody.data;
 
     // 2. Find the user in the database
     const user = await prisma.user.findUnique({ where: { email } });
