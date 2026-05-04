@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Platform, Dimensions, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Platform, Dimensions, ScrollView, Modal, Linking, LayoutAnimation, useWindowDimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../stores'; 
 import { logout } from '../stores/authSlice';
@@ -10,24 +10,48 @@ import { Transaction, Account } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
 import { LogOut, Download, CreditCard, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react-native';
+import { API_BASE_URL } from '../services/api';
 
-const screenWidth = Dimensions.get("window").width;
+const DEFAULT_ORDER = ['ACCOUNTS', 'CHART', 'TRANSACTIONS'];
 
 export default function DashboardScreen() {
+  const { width: windowWidth } = useWindowDimensions();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<any>();
   
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { transactions, loading } = useSelector((state: RootState) => state.transactions);
   const { accounts } = useSelector((state: RootState) => state.accounts);
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
+  const [sectionOrder, setSectionOrder] = useState<string[]>(DEFAULT_ORDER);
 
   useEffect(() => {
+    const loadOrder = async () => {
+      try {
+        const savedOrder = await AsyncStorage.getItem(`dashboardOrder_${user?.id}`);
+        if (savedOrder) {
+          setSectionOrder(JSON.parse(savedOrder));
+        }
+      } catch (e) {
+        console.error("Failed to load dashboard order", e);
+      }
+    };
+    loadOrder();
+    console.log("🚀 Dashboard: Fetching data...");
     dispatch(fetchTransactions());
     dispatch(fetchAccounts());
-  }, [dispatch]);
+  }, [dispatch, user?.id]);
+
+  const saveOrder = async (newOrder: string[]) => {
+    setSectionOrder(newOrder);
+    try {
+      await AsyncStorage.setItem(`dashboardOrder_${user?.id}`, JSON.stringify(newOrder));
+    } catch (e) {
+      console.error("Failed to save dashboard order", e);
+    }
+  };
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('userToken'); 
@@ -61,7 +85,7 @@ export default function DashboardScreen() {
           onPress: async () => {
             try {
               await dispatch(deleteTransaction(id)).unwrap();
-              dispatch(fetchAccounts()); // Refresh accounts after deletion
+              dispatch(fetchAccounts());
             } catch (error) {
               Alert.alert("Delete Failed!", error as string);
             }
@@ -72,17 +96,41 @@ export default function DashboardScreen() {
   };
 
   const handleExport = () => {
+    const exportUrl = `${API_BASE_URL}/transactions/export?token=${token}`;
+    
     if (Platform.OS === 'web') {
-      window.open('http://localhost:5000/api/transactions/export', '_blank');
+      const link = document.createElement('a');
+      link.href = exportUrl;
+      link.download = 'transactions.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } else {
-      Alert.alert("Export", "Export is currently supported on Web.");
+      Linking.openURL(exportUrl).catch(err => {
+        Alert.alert("Export Error", "Could not open export link.");
+        console.error(err);
+      });
+    }
+  };
+
+  const moveSection = (index: number, direction: 'up' | 'down') => {
+    const newOrder = [...sectionOrder];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if (targetIndex >= 0 && targetIndex < newOrder.length) {
+      const [movedItem] = newOrder.splice(index, 1);
+      newOrder.splice(targetIndex, 0, movedItem);
+      
+      if (Platform.OS === 'ios' || Platform.OS === 'android') {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      }
+      saveOrder(newOrder);
     }
   };
 
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
 
-  // Prepare line chart data (Balance trend)
   const sortedTxs = [...safeTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   let runningBalance = totalBalance - safeTransactions.reduce((sum, t) => sum + (t.type === 'INCOME' ? t.amount : -t.amount), 0);
   
@@ -95,13 +143,11 @@ export default function DashboardScreen() {
 
   const chartData = {
     labels: chartLabels.length > 0 ? chartLabels : ["No Data"],
-    datasets: [
-      {
-        data: balanceHistory.length > 0 ? balanceHistory : [0],
-        color: (opacity = 1) => `rgba(255, 51, 102, ${opacity})`,
-        strokeWidth: 2
-      }
-    ]
+    datasets: [{
+      data: balanceHistory.length > 0 ? balanceHistory : [0],
+      color: (opacity = 1) => `rgba(255, 51, 102, ${opacity})`,
+      strokeWidth: 2
+    }]
   };
 
   const chartConfig = {
@@ -152,6 +198,31 @@ export default function DashboardScreen() {
     </View>
   );
 
+  const renderSectionHeader = (title: string, index: number, showSeeAll = false) => (
+    <View style={styles.sectionHeaderContainer}>
+      <View style={styles.sectionTitleGroup}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {showSeeAll && (
+          <TouchableOpacity onPress={() => navigation.navigate('History')}>
+            <Text style={styles.seeAll}>See All</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <View style={styles.reorderButtons}>
+        {index > 0 && (
+          <TouchableOpacity onPress={() => moveSection(index, 'up')} style={styles.reorderBtn}>
+            <Text style={styles.reorderBtnText}>▲</Text>
+          </TouchableOpacity>
+        )}
+        {index < sectionOrder.length - 1 && (
+          <TouchableOpacity onPress={() => moveSection(index, 'down')} style={styles.reorderBtn}>
+            <Text style={styles.reorderBtnText}>▼</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -170,64 +241,65 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Accounts Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>My Accounts</Text>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={accounts}
-            keyExtractor={(item) => item.id}
-            renderItem={renderAccountItem}
-            contentContainerStyle={styles.accountList}
-            ListEmptyComponent={<Text style={styles.emptyText}>No accounts found.</Text>}
-          />
-        </View>
-
-        {/* Chart Section */}
-        <View style={styles.chartContainer}>
-          <Text style={styles.sectionTitle}>Balance Trend</Text>
-          {safeTransactions.length > 1 ? (
-            <LineChart
-              data={chartData}
-              width={screenWidth - 40}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
-          ) : (
-            <Text style={styles.emptyText}>Add more transactions to see trends.</Text>
-          )}
-        </View>
-
-        {/* Transactions Section */}
-        <View style={styles.transactionsSection}>
-          <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          <View style={styles.scrollableContainer}>
-            <ScrollView 
-              nestedScrollEnabled 
-              style={styles.scrollableTransactions}
-              showsVerticalScrollIndicator={false}
-            >
-              {loading ? (
-                <ActivityIndicator size="large" color="#FF3366" style={{ marginTop: 20 }} />
-              ) : safeTransactions.length === 0 ? (
-                <Text style={styles.emptyText}>No transactions yet.</Text>
-              ) : (
-                safeTransactions.map(item => (
-                  <React.Fragment key={item.id}>
-                    {renderTransactionItem({ item })}
-                  </React.Fragment>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {sectionOrder.map((section, index) => {
+          if (section === 'ACCOUNTS') {
+            return (
+              <View key="ACCOUNTS" style={styles.section}>
+                {renderSectionHeader('My Accounts', index)}
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={accounts}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderAccountItem}
+                  contentContainerStyle={styles.accountList}
+                  ListEmptyComponent={<Text style={styles.emptyText}>No accounts found.</Text>}
+                />
+              </View>
+            );
+          }
+          if (section === 'CHART') {
+            return (
+              <View key="CHART" style={styles.chartSection}>
+                {renderSectionHeader('Balance Trends', index)}
+                <View style={styles.chartCard}>
+                  <LineChart
+                    data={chartData}
+                    width={windowWidth - 70}
+                    height={200}
+                    chartConfig={chartConfig}
+                    bezier
+                    style={styles.chart}
+                  />
+                </View>
+              </View>
+            );
+          }
+          if (section === 'TRANSACTIONS') {
+            return (
+              <View key="TRANSACTIONS" style={styles.transactionsSection}>
+                {renderSectionHeader('Recent Transactions', index, true)}
+                <View style={styles.scrollableContainer}>
+                  {loading ? (
+                    <ActivityIndicator size="large" color="#FF3366" style={{ marginTop: 20 }} />
+                  ) : safeTransactions.length === 0 ? (
+                    <Text style={styles.emptyText}>No transactions yet.</Text>
+                  ) : (
+                    safeTransactions.slice(0, 5).map(item => (
+                      <View key={item.id}>
+                        {renderTransactionItem({ item })}
+                      </View>
+                    ))
+                  )}
+                </View>
+              </View>
+            );
+          }
+          return null;
+        })}
       </ScrollView>
 
-      {/* Transaction Detail Modal */}
       <Modal visible={detailVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -237,7 +309,6 @@ export default function DashboardScreen() {
                 <X color="#FFF" size={24} />
               </TouchableOpacity>
             </View>
-
             {selectedTransaction && (
               <View style={styles.detailsList}>
                 <View style={styles.detailRow}>
@@ -266,7 +337,6 @@ export default function DashboardScreen() {
                     <Text style={styles.detailValue}>{selectedTransaction.description}</Text>
                   </View>
                 )}
-
                 <View style={styles.modalActions}>
                   <TouchableOpacity style={[styles.modalBtn, styles.editModalBtn]} onPress={() => handleUpdate(selectedTransaction)}>
                     <Text style={styles.modalBtnText}>Edit</Text>
@@ -286,43 +356,50 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1E1E1E' },
-  header: { padding: 20, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  greeting: { color: '#888', fontSize: 16, marginBottom: 5 },
-  balanceLabel: { color: '#FFF', fontSize: 14, opacity: 0.8 },
-  balanceAmount: { color: '#FFF', fontSize: 36, fontWeight: 'bold' },
+  header: { padding: 25, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  greeting: { color: '#FFF', fontSize: 24, fontWeight: 'bold', marginBottom: 5, letterSpacing: -0.5 },
+  balanceLabel: { color: '#FF3366', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 },
+  balanceAmount: { color: '#FFF', fontSize: 42, fontWeight: 'bold', letterSpacing: -1 },
   headerActions: { flexDirection: 'row', gap: 15 },
-  iconButton: { padding: 5 },
-  section: { marginBottom: 25, paddingLeft: 20 },
-  sectionTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  accountList: { paddingRight: 20 },
-  accountCard: { backgroundColor: '#2C2C2E', padding: 15, borderRadius: 15, width: 140, marginRight: 15, alignItems: 'center' },
-  accountName: { color: '#888', fontSize: 12, marginTop: 8, marginBottom: 4 },
-  accountBalance: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-  chartContainer: { padding: 20, marginBottom: 10 },
+  iconButton: { padding: 10, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  scrollContent: { paddingBottom: 100 },
+  section: { marginBottom: 35 },
+  sectionHeaderContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, marginBottom: 15 },
+  sectionTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  sectionTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', letterSpacing: -0.5 },
+  seeAll: { color: '#FF3366', fontSize: 15, fontWeight: 'bold', marginLeft: 10 },
+  reorderButtons: { flexDirection: 'row', gap: 10 },
+  reorderBtn: { backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  reorderBtnText: { color: '#FFF', fontSize: 14 },
+  accountList: { paddingLeft: 25, paddingRight: 25 },
+  accountCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: 20, borderRadius: 20, width: 150, marginRight: 15, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
+  accountName: { color: '#AAA', fontSize: 13, marginTop: 10, marginBottom: 5, fontWeight: '600' },
+  accountBalance: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  chartSection: { marginBottom: 35 },
+  chartCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 24, padding: 15, alignItems: 'center', marginHorizontal: 25, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
   chart: { borderRadius: 16, marginTop: 10 },
-  transactionsSection: { padding: 20, paddingBottom: 100 },
-  scrollableContainer: { height: 380, backgroundColor: '#2C2C2E', borderRadius: 20, padding: 10 },
-  scrollableTransactions: { flex: 1 },
-  transactionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', padding: 15, borderRadius: 15, marginBottom: 10 },
-  transactionIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2C2C2E', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  transactionsSection: { marginBottom: 35 },
+  scrollableContainer: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 24, padding: 15, marginHorizontal: 25, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
+  transactionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: 18, borderRadius: 18, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
+  transactionIconContainer: { width: 45, height: 45, borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   transactionInfo: { flex: 1 },
   transactionMainInfo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  transactionCategory: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  transactionAccount: { color: '#FF3366', fontSize: 13, fontWeight: '500' },
-  transactionDate: { color: '#888', fontSize: 12, marginTop: 2 },
-  transactionAmount: { fontSize: 16, fontWeight: 'bold' },
-  emptyText: { color: '#888', textAlign: 'center', marginTop: 10, fontSize: 14 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#2C2C2E', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 25, minHeight: 400 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
-  modalTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
-  detailsList: { gap: 20 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  detailLabel: { color: '#888', fontSize: 14 },
-  detailValue: { color: '#FFF', fontSize: 16, fontWeight: '500' },
-  modalActions: { flexDirection: 'row', gap: 15, marginTop: 30 },
-  modalBtn: { flex: 1, padding: 15, borderRadius: 12, alignItems: 'center' },
-  editModalBtn: { backgroundColor: '#2196F3' },
-  deleteModalBtn: { backgroundColor: '#F44336' },
-  modalBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 }
+  transactionCategory: { color: '#FFF', fontSize: 17, fontWeight: 'bold' },
+  transactionAccount: { color: '#FF3366', fontSize: 13, fontWeight: '600' },
+  transactionDate: { color: '#777', fontSize: 12, marginTop: 3 },
+  transactionAmount: { fontSize: 18, fontWeight: 'bold' },
+  emptyText: { color: '#555', textAlign: 'center', marginTop: 15, fontSize: 15, fontWeight: '500' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#1A1A1A', borderTopLeftRadius: 35, borderTopRightRadius: 35, padding: 30, minHeight: 450, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 35 },
+  modalTitle: { color: '#FFF', fontSize: 24, fontWeight: 'bold', letterSpacing: -0.5 },
+  detailsList: { gap: 25 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.05)' },
+  detailLabel: { color: '#888', fontSize: 15, fontWeight: '500' },
+  detailValue: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
+  modalActions: { flexDirection: 'row', gap: 15, marginTop: 35 },
+  modalBtn: { flex: 1, padding: 18, borderRadius: 15, alignItems: 'center' },
+  editModalBtn: { backgroundColor: 'rgba(33, 150, 243, 0.15)', borderWidth: 1, borderColor: 'rgba(33, 150, 243, 0.3)' },
+  deleteModalBtn: { backgroundColor: 'rgba(244, 67, 54, 0.15)', borderWidth: 1, borderColor: 'rgba(244, 67, 54, 0.3)' },
+  modalBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 17 }
 });

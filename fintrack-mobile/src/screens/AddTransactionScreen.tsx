@@ -36,8 +36,18 @@ export default function AddTransactionScreen() {
       setDescription(transactionToEdit.description || '');
       setType(transactionToEdit.type);
       setAccountId(transactionToEdit.accountId);
-    } else if (accounts.length > 0 && !accountId) {
-      setAccountId(accounts[0].id);
+    } else {
+      // RESET ALL FIELDS FOR NEW TRANSACTION
+      setAmount('');
+      setCategory('');
+      setDescription('');
+      setType('EXPENSE');
+      setError(null);
+      if (accounts.length > 0) {
+        setAccountId(accounts[0].id);
+      } else {
+        setAccountId(undefined);
+      }
     }
   }, [transactionToEdit, accounts]);
 
@@ -45,6 +55,12 @@ export default function AddTransactionScreen() {
     setError(null);
     if (!amount || !category) {
       setError('Please fill out the amount and category');
+      return;
+    }
+
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount)) {
+      setError('Please enter a valid number for the amount');
       return;
     }
 
@@ -76,7 +92,15 @@ export default function AddTransactionScreen() {
       await dispatch(fetchAccounts()).unwrap();
       navigation.goBack();
     } catch (err: any) {
-      setError(err || 'Failed to save transaction');
+      console.log('X. [ERROR] Transaction save failed');
+      let errorMessage = err.message || (typeof err === 'string' ? err : 'Failed to save transaction');
+      
+      if (err.details && err.details.length > 0) {
+        const detailMessages = err.details.map((d: any) => d.message).join(', ');
+        errorMessage = `${errorMessage}: ${detailMessages}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

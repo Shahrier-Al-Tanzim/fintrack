@@ -11,8 +11,12 @@ export const register = createAsyncThunk(
       // Your backend likely returns { user, token }
       return response.data;
     } catch (error: any) {
-      // Pass the backend error message (e.g., "Email already exists") to the UI
-      return rejectWithValue(error.response?.data?.error || 'Registration failed');
+      // Pass the backend error message and details (e.g., password complexity issues)
+      const errorData = {
+        message: error.response?.data?.error || 'Registration failed',
+        details: error.response?.data?.details || []
+      };
+      return rejectWithValue(errorData);
     }
   }
 );
@@ -74,7 +78,13 @@ const authSlice = createSlice({
       // Handle "Error"
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        const payload = action.payload as any;
+        if (payload?.details?.length > 0) {
+          // If there are specific validation issues, combine them
+          state.error = `${payload.message}: ${payload.details.map((d: any) => d.message).join(', ')}`;
+        } else {
+          state.error = payload?.message || 'Registration failed';
+        }
       });
   },
 });

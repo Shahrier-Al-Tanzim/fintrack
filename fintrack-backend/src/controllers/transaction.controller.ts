@@ -204,8 +204,8 @@ export const exportTransactions = async (req: AuthRequest, res: Response): Promi
       csv += `${t.id},${t.date.toISOString()},${t.amount},${t.type},${t.category},"${t.description || ''}","${t.account?.name || ''}"\n`;
     });
 
-    res.header('Content-Type', 'text/csv');
-    res.attachment('transactions.csv');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=transactions.csv');
     res.send(csv);
   } catch (error) {
     console.error('Export Error:', error);
