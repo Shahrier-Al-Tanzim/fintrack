@@ -10,7 +10,7 @@ import { Transaction, Account } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
 import { fetchBudgets } from '../stores/budgetSlice';
-import { LogOut, Download, CreditCard, ArrowUpRight, ArrowDownLeft, X, Target } from 'lucide-react-native';
+import { LogOut, Download, CreditCard, ArrowUpRight, ArrowDownLeft, X, Target, Bug } from 'lucide-react-native';
 import { API_BASE_URL } from '../services/api';
 
 const DEFAULT_ORDER = ['ACCOUNTS', 'BUDGETS', 'CHART', 'TRANSACTIONS'];
@@ -235,6 +235,12 @@ export default function DashboardScreen() {
           <Text style={styles.balanceAmount}>${totalBalance.toFixed(2)}</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={[styles.iconButton, { borderColor: '#F44336' }]} 
+            onPress={() => { throw new Error("Sentry Test Crash: " + new Date().toISOString()); }}
+          >
+            <Bug color="#F44336" size={24} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={handleExport}>
             <Download color="#FF3366" size={24} />
           </TouchableOpacity>

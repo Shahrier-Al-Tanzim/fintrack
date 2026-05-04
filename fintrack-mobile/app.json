@@ -27,6 +27,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "shahrier",
+          "project": "react-native"
+        }
+      ],
       "@react-native-community/datetimepicker"
     ]
   }
