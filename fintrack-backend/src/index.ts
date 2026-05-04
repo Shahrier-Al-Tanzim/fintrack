@@ -13,7 +13,7 @@ dotenv.config();
 const app = express();
 
 Sentry.init({
-  dsn: 'https://47ff0e50c78c41a0ed87105fc7639429@o4511332838866944.ingest.us.sentry.io/4511332845420544',
+  dsn: process.env.SENTRY_DSN,
   integrations: [
     nodeProfilingIntegration(),
   ],

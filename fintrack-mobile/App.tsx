@@ -5,7 +5,7 @@
   import * as Sentry from '@sentry/react-native';
 
   Sentry.init({
-    dsn: 'https://47ff0e50c78c41a0ed87105fc7639429@o4511332838866944.ingest.us.sentry.io/4511332845420544',
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring.
     // We recommend adjusting this value in production.
     tracesSampleRate: 1.0,
