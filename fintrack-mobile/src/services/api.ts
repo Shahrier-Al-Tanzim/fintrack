@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Use localhost for local development, Render for production
-const API_BASE_URL = __DEV__ 
+export const API_BASE_URL = __DEV__ 
   ? 'http://localhost:5000/api' 
   : 'https://fintrack-v6l3.onrender.com/api';
 

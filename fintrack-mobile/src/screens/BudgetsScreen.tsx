@@ -28,7 +28,7 @@ export default function BudgetsScreen() {
 
   useEffect(() => {
     dispatch(fetchBudgets()).unwrap().catch(err => console.error("Fetch Budgets Error:", err));
-    dispatch(fetchTransactions());
+    dispatch(fetchTransactions({}));
   }, [dispatch]);
 
   const budgetStats = useMemo(() => {

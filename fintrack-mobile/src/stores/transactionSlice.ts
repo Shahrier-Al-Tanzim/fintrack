@@ -3,7 +3,7 @@ import { Transaction } from '../types';
 import api from '../services/api';
 
 // 1. Fetching
-export const fetchTransactions = createAsyncThunk('transactions/fetchAll', async (filters: any = {}, { rejectWithValue }) => {
+export const fetchTransactions = createAsyncThunk('transactions/fetchAll', async (filters: any | void, { rejectWithValue }) => {
   try {
     const response = await api.get('/transactions', { params: filters });
     if (Array.isArray(response.data)) return response.data;

@@ -42,7 +42,7 @@ export default function DashboardScreen() {
     };
     loadOrder();
     console.log("🚀 Dashboard: Fetching data...");
-    dispatch(fetchTransactions());
+    dispatch(fetchTransactions({}));
     dispatch(fetchAccounts());
     dispatch(fetchBudgets());
   }, [dispatch, user?.id]);

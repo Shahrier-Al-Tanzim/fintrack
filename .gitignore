@@ -35,3 +35,6 @@ fintrack-mobile/*.mobileprovision
 
 # --- TypeScript ---
 *.tsbuildinfo
+
+job-requirements.md
+requirements.md
