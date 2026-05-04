@@ -1,49 +1,64 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 import api from '../services/api';
-import { Bug, Server, ChevronLeft } from 'lucide-react-native';
+import { Bug, Server, ChevronLeft, Activity } from 'lucide-react-native';
 
 const DebugSentryScreen = ({ navigation }: any) => {
+  const [status, setStatus] = useState<string>('System Ready. Press a button to test.');
+
+  const showFeedback = (title: string, message: string) => {
+    setStatus(`${title}: ${message}`);
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const testFrontend = () => {
-    console.log("Triggering frontend Sentry error...");
-    // Using Sentry.captureException for a non-fatal test or throw for a fatal one
+    setStatus('Triggering frontend error...');
     try {
       throw new Error("Sentry Test: Manual Frontend Exception from Debug Screen!");
-    } catch (error) {
+    } catch (error: any) {
       Sentry.captureException(error);
-      Alert.alert("Frontend Error Sent", "Check your Sentry Frontend project dashboard.");
+      showFeedback("Frontend Error Sent", "Check your Sentry Frontend project dashboard. Error: " + error.message);
     }
   };
 
   const testFatalFrontend = () => {
-    Alert.alert(
-      "Warning",
-      "This will crash the app. Continue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Crash Now", 
-          style: "destructive",
-          onPress: () => {
-            throw new Error("Sentry Test: FATAL Frontend Crash!");
-          } 
-        }
-      ]
-    );
+    if (Platform.OS === 'web') {
+      if (window.confirm("This will crash the app. Continue?")) {
+        throw new Error("Sentry Test: FATAL Frontend Crash!");
+      }
+    } else {
+      Alert.alert(
+        "Warning",
+        "This will crash the app. Continue?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Crash Now", 
+            style: "destructive",
+            onPress: () => {
+              throw new Error("Sentry Test: FATAL Frontend Crash!");
+            } 
+          }
+        ]
+      );
+    }
   };
 
   const testBackend = async () => {
+    setStatus('Calling backend debug endpoint...');
     try {
-      console.log("Triggering backend Sentry error...");
-      // Using the /api/debug-sentry route we just added
       const response = await api.get('/debug-sentry');
-      Alert.alert("Backend Response", response.data);
+      showFeedback("Backend Response", response.data);
     } catch (error: any) {
       console.error("Backend error triggered:", error);
-      Alert.alert(
+      showFeedback(
         "Backend Error Triggered", 
-        "The backend returned a 500 error as expected. Check your Sentry Backend project dashboard."
+        "The backend returned a 500 error as expected. This means the Sentry middleware should have caught it!"
       );
     }
   };
@@ -55,6 +70,11 @@ const DebugSentryScreen = ({ navigation }: any) => {
           <ChevronLeft color="#FFF" size={24} />
         </TouchableOpacity>
         <Text style={styles.title}>Sentry Debugger</Text>
+      </View>
+
+      <View style={styles.statusCard}>
+        <Activity color="#FF3366" size={20} />
+        <Text style={styles.statusText}>{status}</Text>
       </View>
 
       <View style={styles.card}>
@@ -98,6 +118,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212', 
     padding: 20,
     paddingTop: 60
+  },
+  statusCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FF336633',
+  },
+  statusText: {
+    color: '#FF3366',
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
