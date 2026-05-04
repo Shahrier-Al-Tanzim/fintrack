@@ -2,9 +2,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Since we are running in the browser, localhost connects right to your Node server!
-// For production, use the Render URL. For local dev, use your machine IP or 10.0.2.2 for Android.
-export const API_BASE_URL = 'http://localhost:5000/api';
-// export const API_BASE_URL = 'https://fintrack-v6l3.onrender.com/api';
+// const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://fintrack-v6l3.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -16,7 +15,7 @@ api.interceptors.request.use(
     try {
       // Look for the token in the browser's secure local storage
       const token = await AsyncStorage.getItem('userToken');
-      
+
       // If we are logged in, attach the token to the headers
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -24,7 +23,7 @@ api.interceptors.request.use(
     } catch (error) {
       console.error('Error fetching token from storage', error);
     }
-    
+
     return config;
   },
   (error) => {
