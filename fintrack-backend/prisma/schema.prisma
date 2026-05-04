@@ -11,6 +11,8 @@ model User {
   name         String
   passwordHash String
   transactions Transaction[]
+  accounts     Account[]
+  budgets      Budget[]
   createdAt    DateTime      @default(now())
 }
 
@@ -23,5 +25,29 @@ model Transaction {
   date        DateTime @default(now())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
+  accountId   String?
+  accountName String?
+  account     Account? @relation(fields: [accountId], references: [id])
 }
 
+model Account {
+  id           String        @id @default(uuid())
+  name         String
+  balance      Float         @default(0)
+  icon         String?       
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+}
+
+model Budget {
+  id           String        @id @default(uuid())
+  amount       Float
+  category     String?
+  duration     String        @default("MONTH") // "WEEK", "MONTH", "YEAR"
+  accountId    String?
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  createdAt    DateTime      @default(now())
+}

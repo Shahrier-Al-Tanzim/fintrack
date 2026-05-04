@@ -1,50 +1,103 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../stores';
 import { setCredentials } from '../stores/authSlice';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Home, CreditCard, PieChart, PlusCircle, List } from 'lucide-react-native';
 
 import AddTransactionScreen from '../screens/AddTransactionScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import AccountsScreen from '../screens/AccountsScreen';
+import BudgetsScreen from '../screens/BudgetsScreen';
+import TransactionsScreen from '../screens/TransactionsScreen';
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
-// 1. ADD THIS LINKING CONFIGURATION
 const linking = {
   prefixes: ['https://fintrack-v6l3.onrender.com', 'fintrack://'],
   config: {
     screens: {
       Login: 'login',
       Register: 'register',
-      Dashboard: '', // Empty string makes Dashboard the default home page
-      AddTransaction: 'add-transaction', 
+      Main: {
+        screens: {
+          Dashboard: '',
+          Transactions: 'transactions',
+          Accounts: 'accounts',
+          Budgets: 'budgets',
+          AddTransaction: 'add-transaction',
+        }
+      }
     },
   },
 };  
 
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: '#1E1E1E',
+          borderTopWidth: 0,
+          elevation: 10,
+          shadowOpacity: 0.1,
+        },
+        tabBarActiveTintColor: '#FF3366', // Poppy color
+        tabBarInactiveTintColor: '#888',
+      }}
+    >
+      <Tab.Screen 
+        name="Dashboard" 
+        component={DashboardScreen} 
+        options={{ tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }}
+      />
+      <Tab.Screen 
+        name="History" 
+        component={TransactionsScreen} 
+        options={{ tabBarIcon: ({ color, size }) => <List color={color} size={size} /> }}
+      />
+      <Tab.Screen 
+        name="AddTransaction" 
+        component={AddTransactionScreen} 
+        options={{ 
+          tabBarIcon: ({ color, size }) => <PlusCircle color="#4CAF50" size={32} />, // Larger poppy icon for Add
+          tabBarLabel: 'Add' 
+        }}
+      />
+      <Tab.Screen 
+        name="Accounts" 
+        component={AccountsScreen} 
+        options={{ tabBarIcon: ({ color, size }) => <CreditCard color={color} size={size} /> }}
+      />
+      <Tab.Screen 
+        name="Budgets" 
+        component={BudgetsScreen} 
+        options={{ tabBarIcon: ({ color, size }) => <PieChart color={color} size={size} /> }}
+      />
+    </Tab.Navigator>
+  );
+}
+
 export default function AppNavigator() {
   const dispatch = useDispatch<AppDispatch>();
-  
-  // 1. Read the memory from our Redux brain
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
-  
-  // Create a loading state so the app pauses while it checks the hard drive
   const [isReady, setIsReady] = useState(false); 
 
   useEffect(() => {
     const checkMemory = async () => {
       try {
-        // Look in the hard drive for both the token AND the user data
         const token = await AsyncStorage.getItem('userToken');
         const userString = await AsyncStorage.getItem('userData');
         
-        // If we found a saved session, shove it back into Redux!
         if (token && userString) {
           const user = JSON.parse(userString);
           dispatch(setCredentials({ user, token }));
@@ -52,7 +105,6 @@ export default function AppNavigator() {
       } catch (error) {
         console.error('Failed to restore memory:', error);
       } finally {
-        // Tell the app we are done checking, it's safe to load the screens
         setIsReady(true);
       }
     };
@@ -60,30 +112,24 @@ export default function AppNavigator() {
     checkMemory();
   }, [dispatch]);
 
-  // Show a dark screen with a green spinner while checking storage
   if (!isReady) {
     return (
       <View style={{ flex: 1, backgroundColor: '#1E1E1E', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color="#FF3366" />
       </View>
     );
   }
 
   return (
-    <NavigationContainer linking={linking} fallback={<ActivityIndicator size="large" color="#4CAF50" />}>
+    <NavigationContainer linking={linking} fallback={<ActivityIndicator size="large" color="#FF3366" />}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
-          // 2. If NOT logged in, only give them access to these two screens
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         ) : (
-          // 3. If logged in, only give them access to the secure app
-          <>
-            <Stack.Screen name="Dashboard" component={DashboardScreen} />
-            <Stack.Screen name="AddTransaction" component={AddTransactionScreen} />
-          </>
+          <Stack.Screen name="Main" component={MainTabs} />
         )}
       </Stack.Navigator>
     </NavigationContainer>

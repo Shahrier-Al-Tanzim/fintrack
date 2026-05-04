@@ -1,0 +1,1 @@
+- there should be a page dedicated to trasnations where full trasdnactions, all transactions be displayed and be filtered by date, amount account, income, expense

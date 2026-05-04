@@ -1,35 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { AppDispatch } from '../stores';
-// --- NEW: Added updateTransaction here ---
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform, Modal } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../stores';
 import { addTransaction, fetchTransactions, updateTransaction } from '../stores/transactionSlice'; 
-// --- NEW: Added useRoute to catch the data passed from Dashboard ---
+import { fetchAccounts } from '../stores/accountSlice';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 export default function AddTransactionScreen() {
   const dispatch = useDispatch<AppDispatch>();
-  const navigation = useNavigation<any>(); // Added <any> to prevent the TypeScript 'never' error
+  const navigation = useNavigation<any>(); 
   const route = useRoute<any>(); 
 
-  // --- NEW: Check if Dashboard sent a transaction to edit ---
   const transactionToEdit = route.params?.transaction;
-  const isEditing = !!transactionToEdit; // true if we are editing, false if adding new
+  const isEditing = !!transactionToEdit; 
+
+  const { accounts } = useSelector((state: RootState) => state.accounts);
 
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState(''); 
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE'); 
+  const [accountId, setAccountId] = useState<string | undefined>();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
-  // --- NEW: Pre-fill the form instantly if we are in Edit Mode ---
+  useEffect(() => {
+    dispatch(fetchAccounts());
+  }, [dispatch]);
+
   useEffect(() => {
     if (transactionToEdit) {
       setAmount(transactionToEdit.amount.toString());
       setCategory(transactionToEdit.category);
       setDescription(transactionToEdit.description || '');
       setType(transactionToEdit.type);
+      setAccountId(transactionToEdit.accountId);
+    } else if (accounts.length > 0 && !accountId) {
+      setAccountId(accounts[0].id);
     }
-  }, [transactionToEdit]);
+  }, [transactionToEdit, accounts]);
 
   const handleSave = async () => {
     if (!amount || !category) {
@@ -38,39 +46,35 @@ export default function AddTransactionScreen() {
     }
 
     try {
-      // Prepare the data package
       const transactionData = {
         amount: parseFloat(amount), 
         category, 
         type,
-        description: description || undefined 
+        description: description || undefined,
+        accountId
       };
 
-      // 1. Tell Redux to save the transaction to the backend
       if (isEditing) {
-        // 🔄 IF EDITING: Update the existing transaction
         await dispatch(updateTransaction({ 
           id: transactionToEdit.id, 
           data: transactionData 
         })).unwrap();
       } else {
-        // ➕ IF NEW: Add a brand new transaction
-        await dispatch(addTransaction(transactionData)).unwrap(); 
+        await dispatch(addTransaction(transactionData as any)).unwrap(); 
       }
 
-      // 2. NEW FIX: Force Redux to pull the freshest list of transactions from the database!
       await dispatch(fetchTransactions()).unwrap();
-
-      // 3. Now that Redux is 100% updated, slide back to the Dashboard
+      await dispatch(fetchAccounts()).unwrap();
       navigation.goBack();
     } catch (error) {
       Alert.alert(`Failed to ${isEditing ? 'update' : 'save'}`, error as string);
     }
   };
 
+  const selectedAccountName = accounts.find(a => a.id === accountId)?.name || 'Select an Account';
+
   return (
-    <View style={styles.container}>
-      {/* --- NEW: Dynamic Title --- */}
+    <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{isEditing ? 'Edit Transaction' : 'New Transaction'}</Text>
 
       <View style={styles.toggleContainer}>
@@ -105,6 +109,45 @@ export default function AddTransactionScreen() {
         onChangeText={setCategory}
       />
 
+      {accounts.length > 0 && (
+        <View style={styles.accountSelection}>
+          <Text style={styles.label}>Select Account:</Text>
+          <TouchableOpacity 
+            style={styles.dropdownButton} 
+            onPress={() => setIsDropdownOpen(true)}
+          >
+            <Text style={styles.dropdownButtonText}>{selectedAccountName}</Text>
+            <Text style={styles.dropdownButtonIcon}>▼</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Custom Dropdown Modal */}
+      <Modal visible={isDropdownOpen} transparent={true} animationType="fade">
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setIsDropdownOpen(false)}
+        >
+          <View style={styles.dropdownMenu}>
+            {accounts.map(acc => (
+              <TouchableOpacity
+                key={acc.id}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setAccountId(acc.id);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <Text style={[styles.dropdownItemText, accountId === acc.id && styles.dropdownItemTextActive]}>
+                  {acc.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <TextInput
         style={[styles.input, styles.textArea]}
         placeholder="Description (optional)"
@@ -116,7 +159,6 @@ export default function AddTransactionScreen() {
       />
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        {/* --- NEW: Dynamic Button Text --- */}
         <Text style={styles.saveButtonText}>
           {isEditing ? 'Save Changes' : 'Save Transaction'}
         </Text>
@@ -125,12 +167,12 @@ export default function AddTransactionScreen() {
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
         <Text style={styles.cancelButtonText}>Cancel</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1E1E1E', padding: 20, justifyContent: 'center' },
+  container: { flexGrow: 1, backgroundColor: '#1E1E1E', padding: 20, justifyContent: 'center' },
   title: { color: '#FFF', fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' },
   toggleContainer: { flexDirection: 'row', marginBottom: 20, borderRadius: 8, overflow: 'hidden' },
   toggleBtn: { flex: 1, padding: 15, backgroundColor: '#2C2C2C', alignItems: 'center' },
@@ -139,7 +181,17 @@ const styles = StyleSheet.create({
   toggleText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
   input: { backgroundColor: '#2C2C2C', color: '#FFF', padding: 15, borderRadius: 8, marginBottom: 15, fontSize: 16 },
   textArea: { height: 80, textAlignVertical: 'top' }, 
-  saveButton: { backgroundColor: '#4CAF50', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  label: { color: '#FFF', fontSize: 16, marginBottom: 10 },
+  accountSelection: { marginBottom: 15 },
+  dropdownButton: { backgroundColor: '#2C2C2C', padding: 15, borderRadius: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dropdownButtonText: { color: '#FFF', fontSize: 16 },
+  dropdownButtonIcon: { color: '#FFF', fontSize: 12 },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  dropdownMenu: { backgroundColor: '#2C2C2C', width: '80%', borderRadius: 8, paddingVertical: 10, elevation: 5 },
+  dropdownItem: { paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#3A3A3C' },
+  dropdownItemText: { color: '#FFF', fontSize: 16 },
+  dropdownItemTextActive: { color: '#FF3366', fontWeight: 'bold' },
+  saveButton: { backgroundColor: '#FF3366', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
   cancelButton: { padding: 15, alignItems: 'center', marginTop: 10 },
   cancelButtonText: { color: '#888', fontSize: 16 }
