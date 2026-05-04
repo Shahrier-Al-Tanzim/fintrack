@@ -36,7 +36,7 @@ export default function TransactionsScreen() {
 
   useEffect(() => {
     dispatch(fetchAccounts());
-    dispatch(fetchTransactions());
+    dispatch(fetchTransactions({}));
   }, [dispatch]);
 
   // INSTANT FRONTEND FILTERING LOGIC

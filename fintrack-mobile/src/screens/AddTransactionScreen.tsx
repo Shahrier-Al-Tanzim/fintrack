@@ -88,7 +88,7 @@ export default function AddTransactionScreen() {
         await dispatch(addTransaction(transactionData as any)).unwrap(); 
       }
 
-      await dispatch(fetchTransactions()).unwrap();
+      await dispatch(fetchTransactions({})).unwrap();
       await dispatch(fetchAccounts()).unwrap();
       navigation.goBack();
     } catch (err: any) {
