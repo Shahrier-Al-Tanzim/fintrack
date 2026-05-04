@@ -239,12 +239,6 @@ export default function DashboardScreen() {
           <Text style={styles.balanceAmount}>${totalBalance.toFixed(2)}</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={[styles.iconButton, { borderColor: '#F44336' }]} 
-            onPress={() => { throw new Error("Sentry Test Crash: " + new Date().toISOString()); }}
-          >
-            <Bug color="#F44336" size={24} />
-          </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={handleExport}>
             <Download color="#FF3366" size={24} />
           </TouchableOpacity>
