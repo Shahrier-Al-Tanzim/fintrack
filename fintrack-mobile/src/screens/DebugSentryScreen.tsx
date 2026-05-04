@@ -1,49 +1,54 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 import api from '../services/api';
-import { Bug, Server, ChevronLeft } from 'lucide-react-native';
+import { Bug, Server, ChevronLeft, Activity } from 'lucide-react-native';
 
 const DebugSentryScreen = ({ navigation }: any) => {
-  const testFrontend = () => {
-    console.log("Triggering frontend Sentry error...");
-    // Using Sentry.captureException for a non-fatal test or throw for a fatal one
-    try {
-      throw new Error("Sentry Test: Manual Frontend Exception from Debug Screen!");
-    } catch (error) {
-      Sentry.captureException(error);
-      Alert.alert("Frontend Error Sent", "Check your Sentry Frontend project dashboard.");
+  const [status, setStatus] = useState<string>('System Ready. Press a button to test.');
+  const [dsnLoaded, setDsnLoaded] = useState<boolean>(!!process.env.EXPO_PUBLIC_SENTRY_DSN);
+
+  const showFeedback = (title: string, message: string) => {
+    setStatus(`${title}: ${message}`);
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
     }
   };
 
-  const testFatalFrontend = () => {
-    Alert.alert(
-      "Warning",
-      "This will crash the app. Continue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Crash Now", 
-          style: "destructive",
-          onPress: () => {
-            throw new Error("Sentry Test: FATAL Frontend Crash!");
-          } 
-        }
-      ]
-    );
+  const testMessage = () => {
+    setStatus('Sending Sentry message...');
+    try {
+      Sentry.captureMessage("FinTrack Sentry Connectivity Test Message");
+      showFeedback("Message Sent", "Check your Sentry dashboard for a 'Connectivity Test' message.");
+    } catch (error: any) {
+      showFeedback("Error", error.message);
+    }
+  };
+
+  const testFrontend = () => {
+    setStatus('Triggering frontend error...');
+    try {
+      // Force a real error object
+      const error = new Error("Sentry Test: Manual Frontend Exception from Debug Screen!");
+      Sentry.captureException(error);
+      showFeedback("Frontend Error Sent", "Check Sentry dashboard for: " + error.message);
+    } catch (error: any) {
+      showFeedback("Exception Error", error.message);
+    }
   };
 
   const testBackend = async () => {
+    setStatus('Calling backend debug endpoint...');
     try {
-      console.log("Triggering backend Sentry error...");
-      // Using the /api/debug-sentry route we just added
       const response = await api.get('/debug-sentry');
-      Alert.alert("Backend Response", response.data);
+      showFeedback("Backend Response", response.data);
     } catch (error: any) {
       console.error("Backend error triggered:", error);
-      Alert.alert(
+      showFeedback(
         "Backend Error Triggered", 
-        "The backend returned a 500 error as expected. Check your Sentry Backend project dashboard."
+        "The backend returned a 500 error as expected. This means the Sentry middleware should have caught it!"
       );
     }
   };
@@ -57,19 +62,24 @@ const DebugSentryScreen = ({ navigation }: any) => {
         <Text style={styles.title}>Sentry Debugger</Text>
       </View>
 
+      <View style={styles.statusCard}>
+        <Activity color="#FF3366" size={20} />
+        <Text style={styles.statusText}>{status}</Text>
+      </View>
+
       <View style={styles.card}>
         <Bug color="#FF3366" size={48} style={styles.icon} />
         <Text style={styles.cardTitle}>Frontend (React Native)</Text>
         <Text style={styles.cardDescription}>
-          Test if errors in the mobile/web app are being captured.
+          Current DSN Status: {dsnLoaded ? '✅ Loaded' : '❌ NOT LOADED'}
         </Text>
         
-        <TouchableOpacity style={styles.button} onPress={testFrontend}>
-          <Text style={styles.buttonText}>Capture Exception</Text>
+        <TouchableOpacity style={styles.button} onPress={testMessage}>
+          <Text style={styles.buttonText}>Send Test Message</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, styles.outlineButton]} onPress={testFatalFrontend}>
-          <Text style={[styles.buttonText, { color: '#FF3366' }]}>Trigger Fatal Crash</Text>
+        <TouchableOpacity style={[styles.button, styles.outlineButton]} onPress={testFrontend}>
+          <Text style={[styles.buttonText, { color: '#FF3366' }]}>Capture Exception</Text>
         </TouchableOpacity>
       </View>
 
@@ -98,6 +108,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212', 
     padding: 20,
     paddingTop: 60
+  },
+  statusCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FF336633',
+  },
+  statusText: {
+    color: '#FF3366',
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
