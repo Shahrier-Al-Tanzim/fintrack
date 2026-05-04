@@ -6,6 +6,12 @@ import { Bug, Server, ChevronLeft, Activity } from 'lucide-react-native';
 
 const DebugSentryScreen = ({ navigation }: any) => {
   const [status, setStatus] = useState<string>('System Ready. Press a button to test.');
+  const [crashMe, setCrashMe] = useState(false);
+
+  // Trigger a render error for a "true" fatal crash test
+  if (crashMe) {
+    throw new Error("Sentry Test: FATAL Render Crash!");
+  }
 
   const showFeedback = (title: string, message: string) => {
     setStatus(`${title}: ${message}`);
@@ -28,8 +34,8 @@ const DebugSentryScreen = ({ navigation }: any) => {
 
   const testFatalFrontend = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm("This will crash the app. Continue?")) {
-        throw new Error("Sentry Test: FATAL Frontend Crash!");
+      if (window.confirm("This will crash the app UI. Continue?")) {
+        setCrashMe(true);
       }
     } else {
       Alert.alert(
@@ -41,7 +47,7 @@ const DebugSentryScreen = ({ navigation }: any) => {
             text: "Crash Now", 
             style: "destructive",
             onPress: () => {
-              throw new Error("Sentry Test: FATAL Frontend Crash!");
+              setCrashMe(true);
             } 
           }
         ]
