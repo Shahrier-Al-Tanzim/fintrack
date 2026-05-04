@@ -22,6 +22,8 @@ export default function AddTransactionScreen() {
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE'); 
   const [accountId, setAccountId] = useState<string | undefined>();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   
   useEffect(() => {
     dispatch(fetchAccounts());
@@ -40,11 +42,18 @@ export default function AddTransactionScreen() {
   }, [transactionToEdit, accounts]);
 
   const handleSave = async () => {
+    setError(null);
     if (!amount || !category) {
-      Alert.alert('Error', 'Please fill out the amount and category');
+      setError('Please fill out the amount and category');
       return;
     }
 
+    if (!accountId) {
+      setError('Please select an account for this transaction');
+      return;
+    }
+
+    setLoading(true);
     try {
       const transactionData = {
         amount: parseFloat(amount), 
@@ -66,8 +75,10 @@ export default function AddTransactionScreen() {
       await dispatch(fetchTransactions()).unwrap();
       await dispatch(fetchAccounts()).unwrap();
       navigation.goBack();
-    } catch (error) {
-      Alert.alert(`Failed to ${isEditing ? 'update' : 'save'}`, error as string);
+    } catch (err: any) {
+      setError(err || 'Failed to save transaction');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,50 +88,56 @@ export default function AddTransactionScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{isEditing ? 'Edit Transaction' : 'New Transaction'}</Text>
 
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       <View style={styles.toggleContainer}>
         <TouchableOpacity 
           style={[styles.toggleBtn, type === 'EXPENSE' && styles.expenseActive]}
-          onPress={() => setType('EXPENSE')}
+          onPress={() => { setType('EXPENSE'); setError(null); }}
         >
           <Text style={styles.toggleText}>Expense</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.toggleBtn, type === 'INCOME' && styles.incomeActive]}
-          onPress={() => setType('INCOME')}
+          onPress={() => { setType('INCOME'); setError(null); }}
         >
           <Text style={styles.toggleText}>Income</Text>
         </TouchableOpacity>
       </View>
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, error && !amount && styles.inputError]}
         placeholder="Amount (e.g. 50.00)"
         placeholderTextColor="#888"
         value={amount}
-        onChangeText={setAmount}
+        onChangeText={(text) => { setAmount(text); setError(null); }}
         keyboardType="numeric"
       />
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, error && !category && styles.inputError]}
         placeholder="Category (e.g. Groceries, Salary)"
         placeholderTextColor="#888"
         value={category}
-        onChangeText={setCategory}
+        onChangeText={(text) => { setCategory(text); setError(null); }}
       />
 
-      {accounts.length > 0 && (
-        <View style={styles.accountSelection}>
-          <Text style={styles.label}>Select Account:</Text>
-          <TouchableOpacity 
-            style={styles.dropdownButton} 
-            onPress={() => setIsDropdownOpen(true)}
-          >
-            <Text style={styles.dropdownButtonText}>{selectedAccountName}</Text>
-            <Text style={styles.dropdownButtonIcon}>▼</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <View style={styles.accountSelection}>
+        <Text style={styles.label}>Select Account:</Text>
+        <TouchableOpacity 
+          style={[styles.dropdownButton, error && !accountId && styles.errorInput]} 
+          onPress={() => setIsDropdownOpen(true)}
+        >
+          <Text style={styles.dropdownButtonText}>
+            {accounts.length === 0 ? 'No Accounts Created' : selectedAccountName}
+          </Text>
+          <Text style={styles.dropdownButtonIcon}>▼</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Custom Dropdown Modal */}
       <Modal visible={isDropdownOpen} transparent={true} animationType="fade">
@@ -130,20 +147,36 @@ export default function AddTransactionScreen() {
           onPress={() => setIsDropdownOpen(false)}
         >
           <View style={styles.dropdownMenu}>
-            {accounts.map(acc => (
-              <TouchableOpacity
-                key={acc.id}
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setAccountId(acc.id);
-                  setIsDropdownOpen(false);
-                }}
-              >
-                <Text style={[styles.dropdownItemText, accountId === acc.id && styles.dropdownItemTextActive]}>
-                  {acc.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {accounts.length === 0 ? (
+              <View style={styles.emptyDropdown}>
+                <Text style={styles.emptyDropdownText}>Please create an account first.</Text>
+                <TouchableOpacity 
+                  style={styles.createAccountBtn} 
+                  onPress={() => {
+                    setIsDropdownOpen(false);
+                    navigation.navigate('Accounts');
+                  }}
+                >
+                  <Text style={styles.createAccountBtnText}>Go to Accounts</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              accounts.map(acc => (
+                <TouchableOpacity
+                  key={acc.id}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setAccountId(acc.id);
+                    setError(null);
+                    setIsDropdownOpen(false);
+                  }}
+                >
+                  <Text style={[styles.dropdownItemText, accountId === acc.id && styles.dropdownItemTextActive]}>
+                    {acc.name}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -158,9 +191,13 @@ export default function AddTransactionScreen() {
         numberOfLines={3}
       />
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+      <TouchableOpacity 
+        style={[styles.saveButton, loading && { opacity: 0.7 }]} 
+        onPress={handleSave}
+        disabled={loading}
+      >
         <Text style={styles.saveButtonText}>
-          {isEditing ? 'Save Changes' : 'Save Transaction'}
+          {loading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Save Transaction')}
         </Text>
       </TouchableOpacity>
       
@@ -172,27 +209,35 @@ export default function AddTransactionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#1E1E1E', padding: 20, justifyContent: 'center' },
-  title: { color: '#FFF', fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' },
-  toggleContainer: { flexDirection: 'row', marginBottom: 20, borderRadius: 8, overflow: 'hidden' },
-  toggleBtn: { flex: 1, padding: 15, backgroundColor: '#2C2C2C', alignItems: 'center' },
+  container: { flexGrow: 1, backgroundColor: '#1E1E1E', padding: 25, justifyContent: 'center' },
+  title: { color: '#FFF', fontSize: 32, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' },
+  errorContainer: { backgroundColor: 'rgba(244, 67, 54, 0.1)', padding: 15, borderRadius: 10, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#F44336' },
+  errorText: { color: '#F44336', fontSize: 14, fontWeight: '500' },
+  toggleContainer: { flexDirection: 'row', marginBottom: 25, borderRadius: 12, overflow: 'hidden' },
+  toggleBtn: { flex: 1, padding: 18, backgroundColor: '#2C2C2E', alignItems: 'center' },
   expenseActive: { backgroundColor: '#F44336' },
   incomeActive: { backgroundColor: '#4CAF50' },
   toggleText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  input: { backgroundColor: '#2C2C2C', color: '#FFF', padding: 15, borderRadius: 8, marginBottom: 15, fontSize: 16 },
-  textArea: { height: 80, textAlignVertical: 'top' }, 
-  label: { color: '#FFF', fontSize: 16, marginBottom: 10 },
-  accountSelection: { marginBottom: 15 },
-  dropdownButton: { backgroundColor: '#2C2C2C', padding: 15, borderRadius: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  input: { backgroundColor: '#2C2C2E', color: '#FFF', padding: 18, borderRadius: 12, marginBottom: 15, fontSize: 16, borderWidth: 1, borderColor: 'transparent' },
+  inputError: { borderColor: 'rgba(244, 67, 54, 0.5)' },
+  textArea: { height: 100, textAlignVertical: 'top' }, 
+  label: { color: '#888', fontSize: 14, marginBottom: 10, marginLeft: 5 },
+  accountSelection: { marginBottom: 25 },
+  dropdownButton: { backgroundColor: '#2C2C2E', padding: 18, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dropdownButtonText: { color: '#FFF', fontSize: 16 },
   dropdownButtonIcon: { color: '#FFF', fontSize: 12 },
-  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  dropdownMenu: { backgroundColor: '#2C2C2C', width: '80%', borderRadius: 8, paddingVertical: 10, elevation: 5 },
-  dropdownItem: { paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#3A3A3C' },
+  errorInput: { borderColor: '#F44336', borderWidth: 1 },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' },
+  dropdownMenu: { backgroundColor: '#2C2C2E', width: '85%', borderRadius: 15, paddingVertical: 10, elevation: 10 },
+  emptyDropdown: { padding: 25, alignItems: 'center' },
+  emptyDropdownText: { color: '#888', marginBottom: 20, textAlign: 'center', fontSize: 16 },
+  createAccountBtn: { backgroundColor: '#FF3366', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 10 },
+  createAccountBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+  dropdownItem: { paddingVertical: 18, paddingHorizontal: 25, borderBottomWidth: 1, borderBottomColor: '#3A3A3C' },
   dropdownItemText: { color: '#FFF', fontSize: 16 },
   dropdownItemTextActive: { color: '#FF3366', fontWeight: 'bold' },
-  saveButton: { backgroundColor: '#FF3366', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  saveButton: { backgroundColor: '#FF3366', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10, elevation: 5 },
   saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
-  cancelButton: { padding: 15, alignItems: 'center', marginTop: 10 },
+  cancelButton: { padding: 18, alignItems: 'center', marginTop: 10 },
   cancelButtonText: { color: '#888', fontSize: 16 }
 });

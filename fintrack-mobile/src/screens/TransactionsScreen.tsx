@@ -2,17 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../stores';
-import { fetchTransactions } from '../stores/transactionSlice';
+import { useNavigation } from '@react-navigation/native';
+import { fetchTransactions, deleteTransaction } from '../stores/transactionSlice';
 import { fetchAccounts } from '../stores/accountSlice';
 import { Transaction } from '../types';
-import { Filter, X, ArrowUpRight, ArrowDownLeft, FilterX } from 'lucide-react-native';
+import { Filter, X, ArrowUpRight, ArrowDownLeft, Edit2, Trash2 } from 'lucide-react-native';
 
 export default function TransactionsScreen() {
   const dispatch = useDispatch<AppDispatch>();
+  const navigation = useNavigation<any>();
   const { transactions, loading } = useSelector((state: RootState) => state.transactions);
   const { accounts } = useSelector((state: RootState) => state.accounts);
 
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   
   // Filter states
   const [type, setType] = useState<string | null>(null);
@@ -54,8 +60,38 @@ export default function TransactionsScreen() {
     setIsFilterModalVisible(false);
   };
 
+  const openDetails = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setDetailModalVisible(true);
+  };
+
+  const handleEdit = () => {
+    if (selectedTransaction) {
+      setDetailModalVisible(false);
+      navigation.navigate('AddTransaction', { transaction: selectedTransaction });
+    }
+  };
+
+  const openDeleteConfirm = () => {
+    if (selectedTransaction) {
+      setDeletingId(selectedTransaction.id);
+      setDeleteModalVisible(true);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (deletingId) {
+      await dispatch(deleteTransaction(deletingId));
+      await dispatch(fetchAccounts()); 
+      setDeleteModalVisible(false);
+      setDetailModalVisible(false);
+      setDeletingId(null);
+      setSelectedTransaction(null);
+    }
+  };
+
   const renderItem = ({ item }: { item: Transaction }) => (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
       <View style={styles.cardHeader}>
         <View style={styles.iconBox}>
           {item.type === 'INCOME' ? (
@@ -78,9 +114,9 @@ export default function TransactionsScreen() {
         </View>
       </View>
       {item.description ? (
-        <Text style={styles.descriptionText}>{item.description}</Text>
+        <Text style={styles.descriptionText} numberOfLines={1}>{item.description}</Text>
       ) : null}
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -107,6 +143,64 @@ export default function TransactionsScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Detail Modal */}
+      <Modal visible={detailModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlayCenter}>
+          <View style={styles.detailContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Transaction Details</Text>
+              <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
+                <X color="#FFF" size={24} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedTransaction && (
+              <View style={styles.detailsList}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Type</Text>
+                  <Text style={[styles.detailValue, { color: selectedTransaction.type === 'INCOME' ? '#4CAF50' : '#F44336' }]}>
+                    {selectedTransaction.type}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Amount</Text>
+                  <Text style={styles.detailValue}>${selectedTransaction.amount.toFixed(2)}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Category</Text>
+                  <Text style={styles.detailValue}>{selectedTransaction.category}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Account</Text>
+                  <Text style={styles.detailValue}>
+                    {(selectedTransaction as any).accountName || accounts.find(a => a.id === (selectedTransaction as any).accountId)?.name || 'N/A'}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Date</Text>
+                  <Text style={styles.detailValue}>{new Date(selectedTransaction.date).toLocaleDateString()}</Text>
+                </View>
+                {selectedTransaction.description && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Description</Text>
+                    <Text style={styles.detailValue}>{selectedTransaction.description}</Text>
+                  </View>
+                )}
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={[styles.modalBtn, styles.editModalBtn]} onPress={handleEdit}>
+                    <Text style={styles.modalBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, styles.deleteModalBtn]} onPress={openDeleteConfirm}>
+                    <Text style={styles.modalBtnText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Filter Modal */}
       <Modal visible={isFilterModalVisible} animationType="slide" transparent>
@@ -220,6 +314,29 @@ export default function TransactionsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={deleteModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlayCenter}>
+          <View style={styles.deleteModalContent}>
+            <View style={styles.deleteIconContainer}>
+              <Trash2 color="#F44336" size={40} />
+            </View>
+            <Text style={styles.deleteTitle}>Delete Transaction?</Text>
+            <Text style={styles.deleteSubtitle}>
+              Are you sure? This will permanently remove this record and update your account balance.
+            </Text>
+            <View style={styles.deleteActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDeleteModalVisible(false)}>
+                <Text style={styles.cancelBtnText}>Keep it</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmDeleteBtn} onPress={confirmDelete}>
+                <Text style={styles.confirmDeleteBtnText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -244,9 +361,20 @@ const styles = StyleSheet.create({
   descriptionText: { color: '#AAA', fontSize: 13, marginTop: 10, fontStyle: 'italic' },
   emptyText: { color: '#888', textAlign: 'center', marginTop: 50, fontSize: 16 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 25 },
   modalContent: { backgroundColor: '#1E1E1E', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 25, height: '85%' },
+  detailContent: { backgroundColor: '#2C2C2E', borderRadius: 20, padding: 25, width: '100%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
   modalTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold' },
+  detailsList: { gap: 15 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#3A3A3C', paddingBottom: 12 },
+  detailLabel: { color: '#888', fontSize: 15 },
+  detailValue: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  modalActions: { flexDirection: 'row', gap: 15, marginTop: 25 },
+  modalBtn: { flex: 1, padding: 15, borderRadius: 12, alignItems: 'center' },
+  editModalBtn: { backgroundColor: '#2196F3' },
+  deleteModalBtn: { backgroundColor: '#F44336' },
+  modalBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
   filterForm: { flex: 1 },
   label: { color: '#888', fontSize: 14, marginBottom: 10, marginTop: 15 },
   typeRow: { flexDirection: 'row', gap: 15 },
@@ -265,4 +393,15 @@ const styles = StyleSheet.create({
   resetBtnText: { color: '#FFF', fontWeight: 'bold' },
   applyBtn: { flex: 2, padding: 15, borderRadius: 12, alignItems: 'center', backgroundColor: '#FF3366' },
   applyBtnText: { color: '#FFF', fontWeight: 'bold' },
+  
+  // Delete Modal Styles
+  deleteModalContent: { backgroundColor: '#2C2C2E', borderRadius: 20, padding: 30, alignItems: 'center' },
+  deleteIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(244, 67, 54, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  deleteTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold', marginBottom: 10 },
+  deleteSubtitle: { color: '#888', fontSize: 15, textAlign: 'center', marginBottom: 30, lineHeight: 22 },
+  deleteActions: { flexDirection: 'row', gap: 15, width: '100%' },
+  cancelBtn: { flex: 1, padding: 15, borderRadius: 12, backgroundColor: '#3A3A3C', alignItems: 'center' },
+  cancelBtnText: { color: '#FFF', fontWeight: '600' },
+  confirmDeleteBtn: { flex: 1, padding: 15, borderRadius: 12, backgroundColor: '#F44336', alignItems: 'center' },
+  confirmDeleteBtnText: { color: '#FFF', fontWeight: 'bold' }
 });

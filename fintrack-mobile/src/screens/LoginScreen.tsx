@@ -13,42 +13,36 @@ type AuthNavigationProp = NativeStackNavigationProp<any, 'Login'>;
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
   const navigation = useNavigation<AuthNavigationProp>();
 
   const handleLogin = async () => {
-    console.log('1. Login button pressed!');
-    console.log('Email:', email, 'Password:', password);
-
+    setError(null);
     if (!email || !password) {
-      console.log('2. Stopped: Missing fields');
-      Alert.alert('Error', 'Please fill in all fields');
+      setError('Please fill in all fields');
       return;
     }
 
+    setLoading(true);
     try {
-      console.log('3. Sending request to backend...');
-      // 1. Send the data to your Node.js backend
       const response = await api.post('/auth/login', { email, password });
-      
-      console.log('4. Backend success!', response.data);
       const { user, token } = response.data;
 
-      // 2. Save BOTH the token and the user to the hard drive!
-      // (This is the fix that stops the app from logging you out on save)
       await AsyncStorage.setItem('userToken', token);
-      await AsyncStorage.setItem('userData', JSON.stringify(user)); // <-- NEW LINE ADDED HERE
-      console.log('5. Token and User Data saved to local storage');
+      await AsyncStorage.setItem('userData', JSON.stringify(user));
 
-      // 3. Dispatch the data to Redux
       dispatch(setCredentials({ user, token }));
-      console.log('6. Redux updated! Navigator should switch now.');
-      
-    } catch (error: any) {
-      console.error('X. Login Error Caught!');
-      console.error('Full Error:', error);
-      console.error('Backend Message:', error.response?.data);
-      Alert.alert('Login Failed', error.response?.data?.error || 'Something went wrong');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Login failed. Please check your connection.';
+      setError(msg);
+      if (err.response?.data?.details) {
+        // If there are specific validation issues, show the first one
+        setError(`${msg}: ${err.response.data.details[0].message}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -57,27 +51,37 @@ export default function LoginScreen() {
       <Text style={styles.title}>FinTrack</Text>
       <Text style={styles.subtitle}>Welcome Back</Text>
 
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       <TextInput
-        style={styles.input}
+        style={[styles.input, error && styles.inputError]}
         placeholder="Email"
         placeholderTextColor="#888"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => { setEmail(text); setError(null); }}
         autoCapitalize="none"
         keyboardType="email-address"
       />
       
       <TextInput
-        style={styles.input}
+        style={[styles.input, error && styles.inputError]}
         placeholder="Password"
         placeholderTextColor="#888"
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(text) => { setPassword(text); setError(null); }}
         secureTextEntry
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
+      <TouchableOpacity 
+        style={[styles.button, loading && { opacity: 0.7 }]} 
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Login'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -88,49 +92,14 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#1E1E1E',
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  input: {
-    backgroundColor: '#2C2C2C',
-    color: '#FFFFFF',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#4CAF50',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  linkText: {
-    color: '#4CAF50',
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16,
-  },
+  container: { flex: 1, justifyContent: 'center', padding: 25, backgroundColor: '#1E1E1E' },
+  title: { fontSize: 42, fontWeight: 'bold', color: '#FF3366', textAlign: 'center', marginBottom: 5 },
+  subtitle: { fontSize: 18, color: '#888', textAlign: 'center', marginBottom: 40 },
+  errorContainer: { backgroundColor: 'rgba(244, 67, 54, 0.1)', padding: 15, borderRadius: 10, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#F44336' },
+  errorText: { color: '#F44336', fontSize: 14, fontWeight: '500' },
+  input: { backgroundColor: '#2C2C2E', color: '#FFF', borderRadius: 12, padding: 18, marginBottom: 15, fontSize: 16, borderWidth: 1, borderColor: 'transparent' },
+  inputError: { borderColor: 'rgba(244, 67, 54, 0.5)' },
+  button: { backgroundColor: '#FF3366', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10, elevation: 5, shadowColor: '#FF3366', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5 },
+  buttonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
+  linkText: { color: '#888', textAlign: 'center', marginTop: 25, fontSize: 16 },
 });

@@ -10,14 +10,16 @@ export default function BudgetsScreen() {
 
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchBudgets());
   }, [dispatch]);
 
   const handleAdd = async () => {
+    setError(null);
     if (!amount) {
-      Alert.alert('Error', 'Amount is required');
+      setError('Amount is required');
       return;
     }
     try {
@@ -25,7 +27,7 @@ export default function BudgetsScreen() {
       setAmount('');
       setCategory('');
     } catch (e) {
-      Alert.alert('Error', 'Failed to add budget');
+      setError('Failed to add budget');
     }
   };
 
@@ -34,8 +36,29 @@ export default function BudgetsScreen() {
       <Text style={styles.title}>Your Budgets</Text>
 
       <View style={styles.addForm}>
-        <TextInput style={styles.input} placeholder="Amount (e.g. 500)" placeholderTextColor="#888" keyboardType="numeric" value={amount} onChangeText={setAmount} />
-        <TextInput style={styles.input} placeholder="Category (optional)" placeholderTextColor="#888" value={category} onChangeText={setCategory} />
+        <Text style={styles.formLabel}>Set New Monthly Budget</Text>
+        
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        <TextInput 
+          style={[styles.input, error && !amount && styles.inputError]} 
+          placeholder="Amount (e.g. 500)" 
+          placeholderTextColor="#888" 
+          keyboardType="numeric" 
+          value={amount} 
+          onChangeText={(text) => { setAmount(text); setError(null); }} 
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Category (optional)" 
+          placeholderTextColor="#888" 
+          value={category} 
+          onChangeText={setCategory} 
+        />
         <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
           <Text style={styles.addButtonText}>Create Budget</Text>
         </TouchableOpacity>
@@ -50,21 +73,25 @@ export default function BudgetsScreen() {
             <Text style={styles.amount}>Limit: ${item.amount.toFixed(2)} / {item.duration}</Text>
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No budgets found.</Text>}
+        ListEmptyComponent={loading ? <ActivityIndicator color="#FF3366" /> : <Text style={styles.emptyText}>No budgets found.</Text>}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1E1E1E', padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 20, marginTop: 30 },
-  addForm: { marginBottom: 20, backgroundColor: '#2C2C2E', padding: 15, borderRadius: 10 },
-  input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 12, borderRadius: 8, marginBottom: 10, fontSize: 16 },
-  addButton: { backgroundColor: '#FF3366', padding: 12, borderRadius: 8, alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#1E1E1E', padding: 25 },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#fff', marginBottom: 25, marginTop: 40 },
+  addForm: { marginBottom: 30, backgroundColor: '#2C2C2E', padding: 20, borderRadius: 15 },
+  formLabel: { color: '#FFF', fontSize: 14, marginBottom: 15, opacity: 0.7 },
+  errorContainer: { backgroundColor: 'rgba(244, 67, 54, 0.1)', padding: 12, borderRadius: 10, marginBottom: 15, borderLeftWidth: 4, borderLeftColor: '#F44336' },
+  errorText: { color: '#F44336', fontSize: 13, fontWeight: '500' },
+  input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 18, borderRadius: 12, marginBottom: 15, fontSize: 16, borderWidth: 1, borderColor: 'transparent' },
+  inputError: { borderColor: 'rgba(244, 67, 54, 0.5)' },
+  addButton: { backgroundColor: '#FF3366', padding: 18, borderRadius: 12, alignItems: 'center', elevation: 5 },
   addButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  card: { backgroundColor: '#2C2C2E', padding: 15, borderRadius: 10, marginBottom: 15 },
-  budgetName: { color: '#fff', fontSize: 18, marginBottom: 5 },
-  amount: { color: '#FF9800', fontSize: 16 },
+  card: { backgroundColor: '#2C2C2E', padding: 20, borderRadius: 15, marginBottom: 15 },
+  budgetName: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 5 },
+  amount: { color: '#FF3366', fontSize: 16, fontWeight: '500' },
   emptyText: { color: '#aaa', textAlign: 'center', marginTop: 20 },
 });

@@ -11,6 +11,7 @@ export default function AccountsScreen() {
   
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
+  const [error, setError] = useState<string | null>(null);
   
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -24,13 +25,17 @@ export default function AccountsScreen() {
   }, [dispatch]);
 
   const handleAdd = async () => {
-    if (!name) return;
+    setError(null);
+    if (!name) {
+      setError('Account name is required');
+      return;
+    }
     try {
       await dispatch(addAccount({ name, balance: balance ? parseFloat(balance) : 0 })).unwrap();
       setName('');
       setBalance('');
     } catch (e) {
-      console.error(e);
+      setError('Failed to add account');
     }
   };
 
@@ -38,11 +43,16 @@ export default function AccountsScreen() {
     setEditingAccount(account);
     setEditName(account.name);
     setEditBalance(account.balance.toString());
+    setError(null);
     setEditModalVisible(true);
   };
 
   const handleUpdate = async () => {
-    if (!editName) return;
+    setError(null);
+    if (!editName) {
+      setError('Name cannot be empty');
+      return;
+    }
     try {
       await dispatch(updateAccount({ 
         id: editingAccount.id, 
@@ -50,7 +60,7 @@ export default function AccountsScreen() {
       })).unwrap();
       setEditModalVisible(false);
     } catch (e) {
-      console.error(e);
+      setError('Update failed');
     }
   };
 
@@ -73,8 +83,26 @@ export default function AccountsScreen() {
       
       <View style={styles.addForm}>
         <Text style={styles.formLabel}>Create New Account</Text>
-        <TextInput style={styles.input} placeholder="Account Name" placeholderTextColor="#888" value={name} onChangeText={setName} />
-        <TextInput style={styles.input} placeholder="Initial Balance" placeholderTextColor="#888" keyboardType="numeric" value={balance} onChangeText={setBalance} />
+        {error && !editModalVisible && !deleteModalVisible && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+        <TextInput 
+          style={[styles.input, error && !name && !editModalVisible && styles.inputError]} 
+          placeholder="Account Name" 
+          placeholderTextColor="#888" 
+          value={name} 
+          onChangeText={(text) => { setName(text); setError(null); }} 
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Initial Balance" 
+          placeholderTextColor="#888" 
+          keyboardType="numeric" 
+          value={balance} 
+          onChangeText={setBalance} 
+        />
         <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
           <Plus color="#FFF" size={20} />
           <Text style={styles.addButtonText}>Add Account</Text>
@@ -114,7 +142,19 @@ export default function AccountsScreen() {
               </TouchableOpacity>
             </View>
 
-            <TextInput style={styles.input} placeholder="Account Name" placeholderTextColor="#888" value={editName} onChangeText={setEditName} />
+            {error && editModalVisible && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            <TextInput 
+              style={[styles.input, error && !editName && styles.inputError]} 
+              placeholder="Account Name" 
+              placeholderTextColor="#888" 
+              value={editName} 
+              onChangeText={(text) => { setEditName(text); setError(null); }} 
+            />
             <TextInput style={styles.input} placeholder="Balance" placeholderTextColor="#888" keyboardType="numeric" value={editBalance} onChangeText={setEditBalance} />
 
             <TouchableOpacity style={styles.saveButton} onPress={handleUpdate}>
@@ -151,17 +191,20 @@ export default function AccountsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1E1E1E', padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginBottom: 25, marginTop: 40 },
+  container: { flex: 1, backgroundColor: '#1E1E1E', padding: 25 },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#fff', marginBottom: 25, marginTop: 40 },
   addForm: { marginBottom: 30, backgroundColor: '#2C2C2E', padding: 20, borderRadius: 15 },
   formLabel: { color: '#FFF', fontSize: 14, marginBottom: 15, opacity: 0.7 },
-  input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
-  addButton: { backgroundColor: '#FF3366', padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
+  errorContainer: { backgroundColor: 'rgba(244, 67, 54, 0.1)', padding: 12, borderRadius: 10, marginBottom: 15, borderLeftWidth: 4, borderLeftColor: '#F44336' },
+  errorText: { color: '#F44336', fontSize: 13, fontWeight: '500' },
+  input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 18, borderRadius: 12, marginBottom: 15, fontSize: 16, borderWidth: 1, borderColor: 'transparent' },
+  inputError: { borderColor: 'rgba(244, 67, 54, 0.5)' },
+  addButton: { backgroundColor: '#FF3366', padding: 18, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, elevation: 5 },
   addButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
   card: { backgroundColor: '#2C2C2E', padding: 20, borderRadius: 15, marginBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardInfo: { flex: 1 },
   accountName: { color: '#888', fontSize: 14, marginBottom: 5 },
-  balance: { color: '#FFF', fontSize: 22, fontWeight: 'bold' },
+  balance: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
   cardActions: { flexDirection: 'row', gap: 15 },
   actionBtn: { padding: 5 },
   emptyText: { color: '#aaa', textAlign: 'center', marginTop: 20 },
@@ -169,7 +212,7 @@ const styles = StyleSheet.create({
   modalContent: { backgroundColor: '#2C2C2E', borderRadius: 20, padding: 25 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
   modalTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
-  saveButton: { backgroundColor: '#FF3366', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  saveButton: { backgroundColor: '#FF3366', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
   
   // Delete Modal Styles
