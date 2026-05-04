@@ -9,10 +9,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Transaction, Account } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
-import { LogOut, Download, CreditCard, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react-native';
+import { fetchBudgets } from '../stores/budgetSlice';
+import { LogOut, Download, CreditCard, ArrowUpRight, ArrowDownLeft, X, Target } from 'lucide-react-native';
 import { API_BASE_URL } from '../services/api';
 
-const DEFAULT_ORDER = ['ACCOUNTS', 'CHART', 'TRANSACTIONS'];
+const DEFAULT_ORDER = ['ACCOUNTS', 'BUDGETS', 'CHART', 'TRANSACTIONS'];
 
 export default function DashboardScreen() {
   const { width: windowWidth } = useWindowDimensions();
@@ -22,6 +23,7 @@ export default function DashboardScreen() {
   const { user, token } = useSelector((state: RootState) => state.auth);
   const { transactions, loading } = useSelector((state: RootState) => state.transactions);
   const { accounts } = useSelector((state: RootState) => state.accounts);
+  const { budgets } = useSelector((state: RootState) => state.budgets);
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -42,6 +44,7 @@ export default function DashboardScreen() {
     console.log("🚀 Dashboard: Fetching data...");
     dispatch(fetchTransactions());
     dispatch(fetchAccounts());
+    dispatch(fetchBudgets());
   }, [dispatch, user?.id]);
 
   const saveOrder = async (newOrder: string[]) => {
@@ -259,6 +262,47 @@ export default function DashboardScreen() {
               </View>
             );
           }
+          if (section === 'BUDGETS') {
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            return (
+              <View key="BUDGETS" style={styles.section}>
+                {renderSectionHeader('Budget Progress', index)}
+                <View style={styles.budgetList}>
+                  {budgets.length === 0 ? (
+                    <TouchableOpacity 
+                      style={styles.emptyBudgetCard} 
+                      onPress={() => navigation.navigate('Budgets')}
+                    >
+                      <Target color="#555" size={30} />
+                      <Text style={styles.emptyBudgetText}>No budgets set. Tap to start!</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    budgets.slice(0, 2).map(budget => {
+                      const spent = transactions
+                        .filter(t => t.type === 'EXPENSE' && new Date(t.date) >= firstDay && (!budget.category || t.category.toLowerCase() === budget.category.toLowerCase()))
+                        .reduce((sum, t) => sum + t.amount, 0);
+                      const progress = Math.min(spent / budget.amount, 1);
+                      const isOver = spent > budget.amount;
+
+                      return (
+                        <View key={budget.id} style={styles.dashboardBudgetCard}>
+                          <View style={styles.budgetInfo}>
+                            <Text style={styles.budgetCategory}>{budget.category || 'General'}</Text>
+                            <Text style={styles.budgetAmount}>${spent.toFixed(0)} / ${budget.amount.toFixed(0)}</Text>
+                          </View>
+                          <View style={styles.dashboardProgressBar}>
+                            <View style={[styles.dashboardProgressFill, { width: `${progress * 100}%`, backgroundColor: isOver ? '#F44336' : '#4CAF50' }]} />
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              </View>
+            );
+          }
           if (section === 'CHART') {
             return (
               <View key="CHART" style={styles.chartSection}>
@@ -375,6 +419,15 @@ const styles = StyleSheet.create({
   accountCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: 20, borderRadius: 20, width: 150, marginRight: 15, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
   accountName: { color: '#AAA', fontSize: 13, marginTop: 10, marginBottom: 5, fontWeight: '600' },
   accountBalance: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  budgetList: { paddingHorizontal: 25 },
+  dashboardBudgetCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: 18, borderRadius: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
+  budgetInfo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  budgetCategory: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  budgetAmount: { color: '#888', fontSize: 14, fontWeight: '600' },
+  dashboardProgressBar: { height: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
+  dashboardProgressFill: { height: '100%', borderRadius: 3 },
+  emptyBudgetCard: { backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: 25, borderRadius: 20, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  emptyBudgetText: { color: '#555', marginTop: 10, fontWeight: '600' },
   chartSection: { marginBottom: 35 },
   chartCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 24, padding: 15, alignItems: 'center', marginHorizontal: 25, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
   chart: { borderRadius: 16, marginTop: 10 },
