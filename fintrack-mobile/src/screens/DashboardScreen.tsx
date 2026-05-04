@@ -34,10 +34,14 @@ export default function DashboardScreen() {
       try {
         const savedOrder = await AsyncStorage.getItem(`dashboardOrder_${user?.id}`);
         if (savedOrder) {
-          setSectionOrder(JSON.parse(savedOrder));
+          const parsed = JSON.parse(savedOrder);
+          // Ensure all default sections exist in the saved order (fix for missing sections in some browsers)
+          const mergedOrder = [...new Set([...parsed, ...DEFAULT_ORDER])];
+          setSectionOrder(mergedOrder);
         }
       } catch (e) {
         console.error("Failed to load dashboard order", e);
+        setSectionOrder(DEFAULT_ORDER);
       }
     };
     loadOrder();
@@ -285,7 +289,7 @@ export default function DashboardScreen() {
                       <Text style={styles.emptyBudgetText}>No budgets set. Tap to start!</Text>
                     </TouchableOpacity>
                   ) : (
-                    budgets.slice(0, 2).map(budget => {
+                    budgets.slice(0, 5).map(budget => {
                       const spent = transactions
                         .filter(t => t.type === 'EXPENSE' && new Date(t.date) >= firstDay && (!budget.category || t.category.toLowerCase() === budget.category.toLowerCase()))
                         .reduce((sum, t) => sum + t.amount, 0);
