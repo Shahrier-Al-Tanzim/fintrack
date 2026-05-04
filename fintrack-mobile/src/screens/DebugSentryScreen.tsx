@@ -6,12 +6,7 @@ import { Bug, Server, ChevronLeft, Activity } from 'lucide-react-native';
 
 const DebugSentryScreen = ({ navigation }: any) => {
   const [status, setStatus] = useState<string>('System Ready. Press a button to test.');
-  const [crashMe, setCrashMe] = useState(false);
-
-  // Trigger a render error for a "true" fatal crash test
-  if (crashMe) {
-    throw new Error("Sentry Test: FATAL Render Crash!");
-  }
+  const [dsnLoaded, setDsnLoaded] = useState<boolean>(!!process.env.EXPO_PUBLIC_SENTRY_DSN);
 
   const showFeedback = (title: string, message: string) => {
     setStatus(`${title}: ${message}`);
@@ -22,36 +17,25 @@ const DebugSentryScreen = ({ navigation }: any) => {
     }
   };
 
-  const testFrontend = () => {
-    setStatus('Triggering frontend error...');
+  const testMessage = () => {
+    setStatus('Sending Sentry message...');
     try {
-      throw new Error("Sentry Test: Manual Frontend Exception from Debug Screen!");
+      Sentry.captureMessage("FinTrack Sentry Connectivity Test Message");
+      showFeedback("Message Sent", "Check your Sentry dashboard for a 'Connectivity Test' message.");
     } catch (error: any) {
-      Sentry.captureException(error);
-      showFeedback("Frontend Error Sent", "Check your Sentry Frontend project dashboard. Error: " + error.message);
+      showFeedback("Error", error.message);
     }
   };
 
-  const testFatalFrontend = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm("This will crash the app UI. Continue?")) {
-        setCrashMe(true);
-      }
-    } else {
-      Alert.alert(
-        "Warning",
-        "This will crash the app. Continue?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Crash Now", 
-            style: "destructive",
-            onPress: () => {
-              setCrashMe(true);
-            } 
-          }
-        ]
-      );
+  const testFrontend = () => {
+    setStatus('Triggering frontend error...');
+    try {
+      // Force a real error object
+      const error = new Error("Sentry Test: Manual Frontend Exception from Debug Screen!");
+      Sentry.captureException(error);
+      showFeedback("Frontend Error Sent", "Check Sentry dashboard for: " + error.message);
+    } catch (error: any) {
+      showFeedback("Exception Error", error.message);
     }
   };
 
@@ -87,15 +71,15 @@ const DebugSentryScreen = ({ navigation }: any) => {
         <Bug color="#FF3366" size={48} style={styles.icon} />
         <Text style={styles.cardTitle}>Frontend (React Native)</Text>
         <Text style={styles.cardDescription}>
-          Test if errors in the mobile/web app are being captured.
+          Current DSN Status: {dsnLoaded ? '✅ Loaded' : '❌ NOT LOADED'}
         </Text>
         
-        <TouchableOpacity style={styles.button} onPress={testFrontend}>
-          <Text style={styles.buttonText}>Capture Exception</Text>
+        <TouchableOpacity style={styles.button} onPress={testMessage}>
+          <Text style={styles.buttonText}>Send Test Message</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, styles.outlineButton]} onPress={testFatalFrontend}>
-          <Text style={[styles.buttonText, { color: '#FF3366' }]}>Trigger Fatal Crash</Text>
+        <TouchableOpacity style={[styles.button, styles.outlineButton]} onPress={testFrontend}>
+          <Text style={[styles.buttonText, { color: '#FF3366' }]}>Capture Exception</Text>
         </TouchableOpacity>
       </View>
 
