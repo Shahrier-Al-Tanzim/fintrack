@@ -10,15 +10,21 @@ export interface AuthRequest extends Request {
 
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
+  let token = '';
 
-  // 1. Check if the header exists and starts with "Bearer "
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // 1. Check Authorization header first
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } 
+  // 2. Check query parameter as a fallback (for downloads)
+  else if (req.query.token) {
+    token = req.query.token as string;
+  }
+
+  if (!token) {
     res.status(401).json({ error: 'Authentication required. No token provided.' });
     return;
   }
-
-  // 2. Extract the token
-  const token = authHeader.split(' ')[1];
 
   try {
     // 3. Verify the token using the secret

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Platform, Dimensions, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Platform, Dimensions, ScrollView, Modal, Linking } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../stores'; 
 import { logout } from '../stores/authSlice';
@@ -10,6 +10,7 @@ import { Transaction, Account } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
 import { LogOut, Download, CreditCard, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react-native';
+import { API_BASE_URL } from '../services/api';
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -17,7 +18,7 @@ export default function DashboardScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<any>();
   
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const { transactions, loading } = useSelector((state: RootState) => state.transactions);
   const { accounts } = useSelector((state: RootState) => state.accounts);
 
@@ -72,10 +73,21 @@ export default function DashboardScreen() {
   };
 
   const handleExport = () => {
+    const exportUrl = `${API_BASE_URL}/transactions/export?token=${token}`;
+    
     if (Platform.OS === 'web') {
-      window.open('http://localhost:5000/api/transactions/export', '_blank');
+      // Create a hidden anchor element to trigger the download
+      const link = document.createElement('a');
+      link.href = exportUrl;
+      link.download = 'transactions.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } else {
-      Alert.alert("Export", "Export is currently supported on Web.");
+      Linking.openURL(exportUrl).catch(err => {
+        Alert.alert("Export Error", "Could not open export link.");
+        console.error(err);
+      });
     }
   };
 
@@ -287,7 +299,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1E1E1E' },
   header: { padding: 20, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  greeting: { color: '#888', fontSize: 16, marginBottom: 5 },
+  greeting: { color: '#FFF', fontSize: 22, fontWeight: 'bold', marginBottom: 5 },
   balanceLabel: { color: '#FFF', fontSize: 14, opacity: 0.8 },
   balanceAmount: { color: '#FFF', fontSize: 36, fontWeight: 'bold' },
   headerActions: { flexDirection: 'row', gap: 15 },

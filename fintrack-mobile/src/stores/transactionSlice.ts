@@ -20,7 +20,10 @@ export const addTransaction = createAsyncThunk('transactions/add', async (transa
     const response = await api.post('/transactions', transactionData);
     return response.data; 
   } catch (error: any) {
-    return rejectWithValue(error.response?.data?.error || 'Failed to add transaction');
+    return rejectWithValue({
+      message: error.response?.data?.error || 'Failed to add transaction',
+      details: error.response?.data?.details || []
+    });
   }
 });
 
@@ -48,7 +51,10 @@ export const updateTransaction = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       console.error('❌ BACKEND UPDATE FAILED!', error.response?.data || error.message);
-      return rejectWithValue(error.response?.data?.error || 'Failed to update transaction');
+      return rejectWithValue({
+        message: error.response?.data?.error || 'Failed to update transaction',
+        details: error.response?.data?.details || []
+      });
     }
   }
 );

@@ -58,6 +58,12 @@ export default function AddTransactionScreen() {
       return;
     }
 
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount)) {
+      setError('Please enter a valid number for the amount');
+      return;
+    }
+
     if (!accountId) {
       setError('Please select an account for this transaction');
       return;
@@ -86,7 +92,15 @@ export default function AddTransactionScreen() {
       await dispatch(fetchAccounts()).unwrap();
       navigation.goBack();
     } catch (err: any) {
-      setError(err || 'Failed to save transaction');
+      console.log('X. [ERROR] Transaction save failed');
+      let errorMessage = err.message || (typeof err === 'string' ? err : 'Failed to save transaction');
+      
+      if (err.details && err.details.length > 0) {
+        const detailMessages = err.details.map((d: any) => d.message).join(', ');
+        errorMessage = `${errorMessage}: ${detailMessages}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
