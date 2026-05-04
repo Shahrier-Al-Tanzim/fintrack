@@ -36,8 +36,18 @@ export default function AddTransactionScreen() {
       setDescription(transactionToEdit.description || '');
       setType(transactionToEdit.type);
       setAccountId(transactionToEdit.accountId);
-    } else if (accounts.length > 0 && !accountId) {
-      setAccountId(accounts[0].id);
+    } else {
+      // RESET ALL FIELDS FOR NEW TRANSACTION
+      setAmount('');
+      setCategory('');
+      setDescription('');
+      setType('EXPENSE');
+      setError(null);
+      if (accounts.length > 0) {
+        setAccountId(accounts[0].id);
+      } else {
+        setAccountId(undefined);
+      }
     }
   }, [transactionToEdit, accounts]);
 

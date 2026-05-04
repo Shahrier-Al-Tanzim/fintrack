@@ -25,17 +25,36 @@ export default function RegisterScreen() {
   const { loading } = useSelector((state: RootState) => state.auth);
 
   const handleRegister = async () => {
+    console.log('--- REGISTRATION START ---');
+    console.log('1. Clearing previous errors and starting registration process');
     setError(null);
+
     if (!name || !email || !password) {
+      console.log('2. [ERROR] Missing name, email or password');
       setError('Please fill in all fields');
       return;
     }
 
+    console.log(`3. Form valid. Name: ${name}, Email: ${email}`);
     try {
+      console.log('4. Dispatching register action to Redux...');
       await dispatch(register({ name, email, password })).unwrap();
+      
+      console.log('5. Registration successful! Navigating to Login screen');
       navigation.navigate('Login');
     } catch (err: any) {
-      setError(err || 'Registration failed. Please check your data.');
+      console.log('X. [ERROR] Registration failed caught in catch block');
+      let errorMessage = err.message || (typeof err === 'string' ? err : 'Registration failed');
+      
+      if (err.details && err.details.length > 0) {
+        const detailMessages = err.details.map((d: any) => d.message).join(', ');
+        errorMessage = `${errorMessage}: ${detailMessages}`;
+        console.log('   Validation Issues:', detailMessages);
+      }
+      
+      setError(errorMessage);
+    } finally {
+      console.log('--- REGISTRATION END ---');
     }
   };
 

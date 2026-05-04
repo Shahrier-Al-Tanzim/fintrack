@@ -19,30 +19,45 @@ export default function LoginScreen() {
   const navigation = useNavigation<AuthNavigationProp>();
 
   const handleLogin = async () => {
+    console.log('--- LOGIN START ---');
+    console.log('1. Clearing previous errors and starting login process');
     setError(null);
+
     if (!email || !password) {
+      console.log('2. [ERROR] Missing email or password');
       setError('Please fill in all fields');
       return;
     }
 
+    console.log(`3. Form valid. Email: ${email}`);
     setLoading(true);
     try {
+      console.log('4. Sending POST request to /auth/login...');
       const response = await api.post('/auth/login', { email, password });
+      
+      console.log('5. Backend response received:', response.status);
       const { user, token } = response.data;
 
+      console.log('6. Saving token and user data to AsyncStorage');
       await AsyncStorage.setItem('userToken', token);
       await AsyncStorage.setItem('userData', JSON.stringify(user));
 
+      console.log('7. Dispatching credentials to Redux store');
       dispatch(setCredentials({ user, token }));
+      console.log('8. Login successful! Redirecting...');
     } catch (err: any) {
+      console.log('X. [ERROR] Login failed caught in catch block');
       const msg = err.response?.data?.error || 'Login failed. Please check your connection.';
+      console.log('   Error Message:', msg);
       setError(msg);
       if (err.response?.data?.details) {
-        // If there are specific validation issues, show the first one
+        console.log('   Detailed issues found:', err.response.data.details);
         setError(`${msg}: ${err.response.data.details[0].message}`);
       }
     } finally {
+      console.log('9. Setting loading to false');
       setLoading(false);
+      console.log('--- LOGIN END ---');
     }
   };
 
