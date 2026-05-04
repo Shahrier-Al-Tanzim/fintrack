@@ -39,6 +39,7 @@ export default function DashboardScreen() {
       }
     };
     loadOrder();
+    console.log("🚀 Dashboard: Fetching data...");
     dispatch(fetchTransactions());
     dispatch(fetchAccounts());
   }, [dispatch, user?.id]);
@@ -84,7 +85,7 @@ export default function DashboardScreen() {
           onPress: async () => {
             try {
               await dispatch(deleteTransaction(id)).unwrap();
-              dispatch(fetchAccounts()); // Refresh accounts after deletion
+              dispatch(fetchAccounts());
             } catch (error) {
               Alert.alert("Delete Failed!", error as string);
             }
@@ -286,9 +287,9 @@ export default function DashboardScreen() {
                     <Text style={styles.emptyText}>No transactions yet.</Text>
                   ) : (
                     safeTransactions.slice(0, 5).map(item => (
-                      <React.Fragment key={item.id}>
+                      <View key={item.id}>
                         {renderTransactionItem({ item })}
-                      </React.Fragment>
+                      </View>
                     ))
                   )}
                 </View>
@@ -356,49 +357,49 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1E1E1E' },
   header: { padding: 25, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  greeting: { color: '#FFF', fontSize: 22, fontWeight: 'bold', marginBottom: 5 },
-  balanceLabel: { color: '#FFF', fontSize: 14, opacity: 0.8 },
-  balanceAmount: { color: '#FFF', fontSize: 36, fontWeight: 'bold' },
+  greeting: { color: '#FFF', fontSize: 24, fontWeight: 'bold', marginBottom: 5, letterSpacing: -0.5 },
+  balanceLabel: { color: '#FF3366', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 },
+  balanceAmount: { color: '#FFF', fontSize: 42, fontWeight: 'bold', letterSpacing: -1 },
   headerActions: { flexDirection: 'row', gap: 15 },
-  iconButton: { padding: 5 },
+  iconButton: { padding: 10, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   scrollContent: { paddingBottom: 100 },
-  section: { marginBottom: 30 },
+  section: { marginBottom: 35 },
   sectionHeaderContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, marginBottom: 15 },
   sectionTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  sectionTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-  seeAll: { color: '#FF3366', fontSize: 14, fontWeight: 'bold', marginLeft: 10 },
+  sectionTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', letterSpacing: -0.5 },
+  seeAll: { color: '#FF3366', fontSize: 15, fontWeight: 'bold', marginLeft: 10 },
   reorderButtons: { flexDirection: 'row', gap: 10 },
-  reorderBtn: { backgroundColor: '#2C2C2E', padding: 8, borderRadius: 8 },
-  reorderBtnText: { color: '#FFF', fontSize: 12 },
+  reorderBtn: { backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  reorderBtnText: { color: '#FFF', fontSize: 14 },
   accountList: { paddingLeft: 25, paddingRight: 25 },
-  accountCard: { backgroundColor: '#2C2C2E', padding: 15, borderRadius: 15, width: 140, marginRight: 15, alignItems: 'center' },
-  accountName: { color: '#888', fontSize: 12, marginTop: 8, marginBottom: 4 },
-  accountBalance: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-  chartSection: { marginBottom: 30 },
-  chartCard: { backgroundColor: '#2C2C2E', borderRadius: 20, padding: 10, alignItems: 'center', marginHorizontal: 25 },
-  chart: { borderRadius: 16 },
-  transactionsSection: { marginBottom: 30 },
-  scrollableContainer: { backgroundColor: '#2C2C2E', borderRadius: 20, padding: 10, marginHorizontal: 25 },
-  transactionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', padding: 15, borderRadius: 15, marginBottom: 10 },
-  transactionIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2C2C2E', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  accountCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: 20, borderRadius: 20, width: 150, marginRight: 15, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
+  accountName: { color: '#AAA', fontSize: 13, marginTop: 10, marginBottom: 5, fontWeight: '600' },
+  accountBalance: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  chartSection: { marginBottom: 35 },
+  chartCard: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 24, padding: 15, alignItems: 'center', marginHorizontal: 25, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
+  chart: { borderRadius: 16, marginTop: 10 },
+  transactionsSection: { marginBottom: 35 },
+  scrollableContainer: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 24, padding: 15, marginHorizontal: 25, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
+  transactionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: 18, borderRadius: 18, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
+  transactionIconContainer: { width: 45, height: 45, borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   transactionInfo: { flex: 1 },
   transactionMainInfo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  transactionCategory: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  transactionAccount: { color: '#FF3366', fontSize: 13, fontWeight: '500' },
-  transactionDate: { color: '#888', fontSize: 12, marginTop: 2 },
-  transactionAmount: { fontSize: 16, fontWeight: 'bold' },
-  emptyText: { color: '#888', textAlign: 'center', marginTop: 10, fontSize: 14 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#2C2C2E', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 25, minHeight: 400 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
-  modalTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
-  detailsList: { gap: 20 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  detailLabel: { color: '#888', fontSize: 14 },
-  detailValue: { color: '#FFF', fontSize: 16, fontWeight: '500' },
-  modalActions: { flexDirection: 'row', gap: 15, marginTop: 30 },
-  modalBtn: { flex: 1, padding: 15, borderRadius: 12, alignItems: 'center' },
-  editModalBtn: { backgroundColor: '#2196F3' },
-  deleteModalBtn: { backgroundColor: '#F44336' },
-  modalBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 }
+  transactionCategory: { color: '#FFF', fontSize: 17, fontWeight: 'bold' },
+  transactionAccount: { color: '#FF3366', fontSize: 13, fontWeight: '600' },
+  transactionDate: { color: '#777', fontSize: 12, marginTop: 3 },
+  transactionAmount: { fontSize: 18, fontWeight: 'bold' },
+  emptyText: { color: '#555', textAlign: 'center', marginTop: 15, fontSize: 15, fontWeight: '500' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#1A1A1A', borderTopLeftRadius: 35, borderTopRightRadius: 35, padding: 30, minHeight: 450, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 35 },
+  modalTitle: { color: '#FFF', fontSize: 24, fontWeight: 'bold', letterSpacing: -0.5 },
+  detailsList: { gap: 25 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.05)' },
+  detailLabel: { color: '#888', fontSize: 15, fontWeight: '500' },
+  detailValue: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
+  modalActions: { flexDirection: 'row', gap: 15, marginTop: 35 },
+  modalBtn: { flex: 1, padding: 18, borderRadius: 15, alignItems: 'center' },
+  editModalBtn: { backgroundColor: 'rgba(33, 150, 243, 0.15)', borderWidth: 1, borderColor: 'rgba(33, 150, 243, 0.3)' },
+  deleteModalBtn: { backgroundColor: 'rgba(244, 67, 54, 0.15)', borderWidth: 1, borderColor: 'rgba(244, 67, 54, 0.3)' },
+  modalBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 17 }
 });
