@@ -17,12 +17,17 @@ import DashboardScreen from '../screens/DashboardScreen';
 import AccountsScreen from '../screens/AccountsScreen';
 import BudgetsScreen from '../screens/BudgetsScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
+import DebugSentryScreen from '../screens/DebugSentryScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const linking = {
-  prefixes: ['https://fintrack-v6l3.onrender.com', 'fintrack://'],
+  prefixes: [
+    'https://fintrack-v6l3.onrender.com', 
+    'https://fintrack-mobile.onrender.com',
+    'fintrack://'
+  ],
   config: {
     screens: {
       Login: 'login',
@@ -35,7 +40,8 @@ const linking = {
           Budgets: 'budgets',
           AddTransaction: 'add-transaction',
         }
-      }
+      },
+      DebugSentry: 'debug-sentry',
     },
   },
 };  
@@ -131,6 +137,7 @@ export default function AppNavigator() {
         ) : (
           <Stack.Screen name="Main" component={MainTabs} />
         )}
+        <Stack.Screen name="DebugSentry" component={DebugSentryScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

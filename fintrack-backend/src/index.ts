@@ -37,6 +37,12 @@ app.get("/debug-sentry", function mainHandler(req, res) {
   res.status(500).send("Sent a manual error to Sentry! Check your dashboard now.");
 });
 
+app.get("/api/debug-sentry", function mainHandler(req, res) {
+  const err = new Error("Manual Sentry error from FinTrack Backend /api!");
+  Sentry.captureException(err); 
+  res.status(500).send("Sent a manual /api error to Sentry! Check your dashboard now.");
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes); 
 app.use('/api/accounts', accountRoutes);
