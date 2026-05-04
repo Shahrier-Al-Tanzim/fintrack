@@ -3,11 +3,12 @@
   import { store } from './src/stores';
   import AppNavigator from './src/navigation/AppNavigator';
   import * as Sentry from '@sentry/react-native';
+  import { API_BASE_URL } from './src/services/api';
 
   Sentry.init({
     dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring.
-    // We recommend adjusting this value in production.
+    // Use a tunnel to bypass ad-blockers in both local and production environments
+    tunnel: `${API_BASE_URL}/sentry-tunnel`,
     tracesSampleRate: 1.0,
   });
 
